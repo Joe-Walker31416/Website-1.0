@@ -1,28 +1,4 @@
-from flask import Flask, send_from_directory, jsonify
-from flask_cors import CORS
-import os
-
-app = Flask(__name__)
-CORS(app)
-
-frontend_folder=os.path.join(os.getcwd(),"..","Frontend")
-dist_folder=os.path.join(frontend_folder,"dist")
-
-@app.route("/",defaults={"filename":""})
-@app.route("/<path:filename>")
-def index(filename):
-    if not filename:
-        filename="index.html"
-    return send_from_directory(dist_folder,filename)
-
-#Add test data
-
-
-@app.route("/api/testdata")
-def testdata():
-
-
-    json_string = {"data":
+json_string = {"data":
         [{'name': 'Kingslayer (feat. BABYMETAL)', 'id': '7CAbF0By0Fpnbiu6Xn5ZF7', 'artists_name': 'Bring Me The Horizon', 'artists_id': '1Ffb6ejR6Fe5IamqA5oRUF'}, 
         {'name': 'Throne', 'id': '0M3adYbGtyRHACP86dey1H', 'artists_name': 'Bring Me The Horizon', 'artists_id': '1Ffb6ejR6Fe5IamqA5oRUF'}, 
         {'name': 'Faint', 'id': '4Yf5bqU3NK4kNOypcrLYwU', 'artists_name': 'Linkin Park', 'artists_id': '6XyY86QOPPrYVGvF9ch6wz'},
@@ -44,10 +20,6 @@ def testdata():
         {'name': 'Points of Authority', 'id': '5egqKwgK5r5rvGD1LrtR7J', 'artists_name': 'Linkin Park', 'artists_id': '6XyY86QOPPrYVGvF9ch6wz'}, 
         {'name': 'A Place for My Head', 'id': '5rAxhWcgFng3s570sGO2F8', 'artists_name': 'Linkin Park', 'artists_id': '6XyY86QOPPrYVGvF9ch6wz'}]
         }
-    data=[song['name'] for song in json_string["data"]]
-    return data #jsonify(data)
+data=[song["name"] for song in json_string["data"]]
 
-
-
-if __name__ == "__main__":
-    app.run(debug=True)
+print(data)

@@ -9,8 +9,11 @@ const Sections = () => {
   const getData = async () => {
       try {
           const response = await fetch("http://localhost:5000/api/testdata");
-          const result = await response.json();
-          setData(result.data); // Assuming the API returns { "data": [...] }
+          const result = await response.json(); // Convert response to JSON
+          
+          console.log("Fetched Data:", result); // Debugging: Check API response
+
+          setData(result); // Set received data
       } catch (error) {
           console.error("Error fetching data:", error);
       }
@@ -20,8 +23,8 @@ const Sections = () => {
   useEffect(() => {
       getData();
   }, []);
-      return (
-   <Stack >
+  return (
+  <Stack >
         <Flex width={'100%'} alignContent={"center"} justifyContent={"center"}>
           <AvatarGroup alignContent={"center"} justifyContent={"center"} >
             <Avatar name="Joe Walker" src="https://ui-avatars.com/api/?name=Joe+walker" size={"2xl"} />
