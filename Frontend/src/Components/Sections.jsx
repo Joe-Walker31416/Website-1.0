@@ -1,5 +1,6 @@
 import { Flex, Tabs, Tab, TabList, TabPanel, TabPanels, AvatarGroup, Avatar, Stack,  Text } from '@chakra-ui/react'
 import React, { useEffect,useState } from 'react'
+import BarChart from "components/charts/BarChart"
 
 const Sections = () => {
   // State to store fetched data
