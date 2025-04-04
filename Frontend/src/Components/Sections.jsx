@@ -1,6 +1,7 @@
-import { Flex, Tabs, Tab, TabList, TabPanel, TabPanels, AvatarGroup, Avatar, Stack,  Text } from '@chakra-ui/react'
+import { Flex, Tabs, Tab, TabList, TabPanel, TabPanels, AvatarGroup, Avatar, Stack,  Text,  Card, CardHeader, CardBody, CardFooter, Image, Heading } from '@chakra-ui/react'
 import React, { useEffect,useState } from 'react'
-import BarChart from "components/charts/BarChart"
+import TabGroup from './TabGroup';
+
 
 const Sections = () => {
   // State to store fetched data
@@ -10,17 +11,13 @@ const Sections = () => {
   const getData = async () => {
       try {
           const response = await fetch("http://localhost:5000/api/testdata");
-          const result = await response.json(); // Convert response to JSON
-          
-          console.log("Fetched Data:", result); // Debugging: Check API response
-
-          setData(result); // Set received data
+          const result = await response.json();
+          console.log("Fetched Data:", result); 
+          setData(result); 
       } catch (error) {
           console.error("Error fetching data:", error);
       }
   };
-
-  // Fetch data on component mount
   useEffect(() => {
       getData();
   }, []);
@@ -34,15 +31,15 @@ const Sections = () => {
         </Flex>
         <Tabs variant='enclosed' size={'lg'} width={'100%'} align='center' alignContent={"center"} position="absolute" top="50%" transform="translateY(-50%)">
           <TabList>
-            <Tab>Tab 1</Tab>
-            <Tab>Tab 2</Tab>
+            <Tab>Song Comparison</Tab>
+            <Tab>Music Taste</Tab>
           </TabList>
           <TabPanels>
             <TabPanel>
-              <Text>{JSON.stringify(data, null, 2)}</Text>
+              {/* <Text>{JSON.stringify(data, null, 2)}</Text> */}
             </TabPanel>
-            <TabPanel>
-              <p>two!</p>
+            <TabPanel bg={"gray.400"}>
+              <TabGroup/>
             </TabPanel>
           </TabPanels>
         </Tabs>
