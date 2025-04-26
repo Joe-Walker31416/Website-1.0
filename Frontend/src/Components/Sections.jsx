@@ -1,6 +1,7 @@
 import { Flex, Tabs, Tab, TabList, TabPanel, TabPanels, AvatarGroup, Avatar, Stack,  Text,  Card, CardHeader, CardBody, CardFooter, Image, Heading } from '@chakra-ui/react'
 import React, { useEffect,useState } from 'react'
 import TabGroup from './TabGroup';
+import LoginButton from './LoginButton';
 
 
 const Sections = () => {
@@ -36,6 +37,8 @@ const Sections = () => {
           </TabList>
           <TabPanels>
             <TabPanel>
+              <LoginButton/>
+              
               {/* <Text>{JSON.stringify(data, null, 2)}</Text> */}
             </TabPanel>
             <TabPanel bg={"gray.400"}>
