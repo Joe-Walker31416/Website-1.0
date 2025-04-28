@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Box, ChakraProvider, Spinner, Center } from '@chakra-ui/react';
 import Background from './Components/Background';
 import LoginPage from './Components/LoginPage';
 import Sections from './Components/Sections';
+import ComparisonPage from './Components/ComparisonPage';
+import Navbar from './Components/Navbar';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -30,25 +33,36 @@ function App() {
   }, []);
   
   if (isLoading) {
-    return <div>Loading...</div>;
+    return (
+      <Center height="100vh">
+        <Spinner size="xl" color="green.500" thickness="4px" />
+      </Center>
+    );
   }
 
   return (
     <Router>
-      <Routes>
-        <Route 
-          path="/login" 
-          element={isAuthenticated ? <Navigate to="/" /> : <LoginPage />} 
-        />
-        <Route 
-          path="/" 
-          element={isAuthenticated ? <Background /> : <Navigate to="/login" />} 
-        />
-        <Route 
-          path="/sections" 
-          element={isAuthenticated ? <Sections /> : <Navigate to="/login" />} 
-        />
-      </Routes>
+      {isAuthenticated && <Navbar />}
+      <Box pt={isAuthenticated ? "70px" : 0}>
+        <Routes>
+          <Route 
+            path="/login" 
+            element={isAuthenticated ? <Navigate to="/compare" /> : <LoginPage />} 
+          />
+          <Route 
+            path="/" 
+            element={isAuthenticated ? <Navigate to="/compare" /> : <Navigate to="/login" />} 
+          />
+          <Route 
+            path="/sections" 
+            element={isAuthenticated ? <Sections /> : <Navigate to="/login" />} 
+          />
+          <Route 
+            path="/compare" 
+            element={isAuthenticated ? <ComparisonPage /> : <Navigate to="/login" />}
+          />
+        </Routes>
+      </Box>
     </Router>
   );
 }

@@ -8,7 +8,8 @@ import datetime
 import requests
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, supports_credentials=True)
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -31,9 +32,16 @@ AUTH_URL = 'https://accounts.spotify.com/authorize'
 TOKEN_URL = 'https://accounts.spotify.com/api/token'
 API_BASE_URL = 'https://api.spotify.com/v1/'
 
+# =====================
+# Authentication Routes
+# =====================
+
 @app.route('/login')
 def login():
-    scope = 'user-read-private user-read-email'
+    # Get the current player from session or use player1 as default
+    current_player = session.get('current_player', 1)
+    
+    scope = 'user-read-private user-read-email user-top-read'
 
     # Parameters for the authorization URL
     params = {
@@ -41,7 +49,8 @@ def login():
         'response_type': 'code',
         'scope': scope,
         'redirect_uri': redirect_uri,
-        'show_dialog': True  # Set to False for running application
+        'show_dialog': True,  # Set to False for production
+        'state': str(current_player)  # Pass player ID in state
     }
 
     # Generate authorization URL
@@ -53,8 +62,14 @@ def login():
 @app.route("/callback")
 def callback():
     code = request.args.get("code")
+    state = request.args.get("state")  # Get player ID from state
+    
     if not code:
         return "No code in request", 400
+    
+    # Store the player ID in session
+    if state:
+        session['current_player'] = int(state)
 
     payload = {
         'grant_type': 'authorization_code',
@@ -65,15 +80,46 @@ def callback():
     }
 
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-    res = requests.post("https://accounts.spotify.com/api/token", data=payload, headers=headers)
+    res = requests.post(TOKEN_URL, data=payload, headers=headers)
 
     if res.status_code != 200:
         return f"Failed to get token: {res.text}", 400
 
-    access_token = res.json().get("access_token")
-
+    token_info = res.json()
+    
+    # Store tokens in session
+    session['access_token'] = token_info['access_token']
+    session['refresh_token'] = token_info['refresh_token']
+    session['expires_at'] = datetime.datetime.now().timestamp() + token_info['expires_in']
+    
+    # Save user data and redirect to frontend
+    access_token = token_info['access_token']
     return redirect(f"http://localhost:3000/?access_token={access_token}")
 
+@app.route('/refresh-token')
+def refresh_token():
+    if 'refresh_token' not in session:
+        return redirect('/login')
+
+    if datetime.datetime.now().timestamp() > session['expires_at']:
+        req_body = {
+            'grant_type': 'refresh_token',
+            'refresh_token': session['refresh_token'],
+            'client_id': client_id,
+            'client_secret': client_secret
+        }
+
+        # Request a new access token using the refresh token
+        response = requests.post(TOKEN_URL, data=req_body)
+        new_token_info = response.json()
+
+        # Store the new access token and expiration time
+        session['access_token'] = new_token_info['access_token']
+        session['expires_at'] = datetime.datetime.now().timestamp() + new_token_info['expires_in']
+
+        return redirect('/api/save_user_data')
+    
+    return redirect('/api/user_status')
 
 def get_token_from_header():
     auth_header = request.headers.get('Authorization')
@@ -87,18 +133,21 @@ def get_token_from_header():
     except ValueError:
         return None
 
-frontend_folder=os.path.join(os.getcwd(),"..","Frontend")
-dist_folder=os.path.join(frontend_folder,"dist")
+# ==============
+# Serve Frontend
+# ==============
+frontend_folder = os.path.join(os.getcwd(), "..", "Frontend")
+dist_folder = os.path.join(frontend_folder, "dist")
 
-@app.route("/",defaults={"filename":""})
+@app.route("/", defaults={"filename": ""})
 @app.route("/<path:filename>")
 def index(filename):
     if not filename:
-        filename="index.html"
-    return send_from_directory(dist_folder,filename)
+        filename = "index.html"
+    return send_from_directory(dist_folder, filename)
 
+# Import all routes
 import routes
 
-
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, port=5000)
