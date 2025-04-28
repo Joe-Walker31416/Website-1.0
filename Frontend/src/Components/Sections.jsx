@@ -12,17 +12,23 @@ import {
   Box, 
   Spinner,
   Center,
-  useToast
+  useToast,
+  Button,
+  Heading,
+  Container
 } from '@chakra-ui/react';
 import React, { useEffect, useState, useCallback } from 'react';
 import TabGroup from './TabGroup';
 import LoginButton from './LoginButton';
 
 const Sections = () => {
-  const [data, setData] = useState([]);
   const [error, setError] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userData, setUserData] = useState({
+    player1: { saved: false, name: null, picture: null },
+    player2: { saved: false, name: null, picture: null }
+  });
   const toast = useToast();
 
   // Check authentication status
@@ -32,42 +38,53 @@ const Sections = () => {
     return !!token;
   }, []);
 
-  // Fetch data from Flask API
-  const getData = useCallback(async () => {
+  // Fetch user data if authenticated
+  const fetchUserData = useCallback(async () => {
+    if (!checkAuthStatus()) return;
+    
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      const response = await fetch("http://localhost:5000/api/testdata");
+      const token = localStorage.getItem('access_token');
+      const response = await fetch('http://localhost:5000/api/user_status', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        throw new Error('Failed to fetch user data');
       }
-      const result = await response.json();
-      console.log("Fetched Data:", result); 
-      setData(result);
+      
+      const data = await response.json();
+      setUserData(data);
     } catch (error) {
-      console.error("Error fetching data:", error);
+      console.error('Error fetching user data:', error);
       setError(error.message);
       
       toast({
-        title: "Error fetching data",
-        description: "Could not connect to the backend server. Make sure it's running.",
-        status: "error",
+        title: 'Error',
+        description: 'Failed to load user data. Please try again.',
+        status: 'error',
         duration: 5000,
         isClosable: true,
       });
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [checkAuthStatus, toast]);
 
-  // Initial data load
+  // Initial setup
   useEffect(() => {
-    getData();
     checkAuthStatus();
+    fetchUserData();
     
     // Listen for auth state changes
     const handleStorageChange = (e) => {
       if (e.key === 'access_token') {
-        checkAuthStatus();
+        const isAuth = checkAuthStatus();
+        if (isAuth) {
+          fetchUserData();
+        }
       }
     };
     
@@ -76,59 +93,124 @@ const Sections = () => {
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [getData, checkAuthStatus]);
+  }, [checkAuthStatus, fetchUserData]);
+
+  // Poll for user status updates every 10 seconds when we're waiting for both users
+  useEffect(() => {
+    let interval;
+    
+    if (isAuthenticated && (!userData.player1.saved || !userData.player2.saved)) {
+      interval = setInterval(() => {
+        fetchUserData();
+      }, 10000);
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isAuthenticated, userData, fetchUserData]);
+
+  const handleLogin = () => {
+    window.location.href = 'http://localhost:5000/login';
+  };
 
   return (
-    <Stack>
+    <Container maxW="1200px" py={6}>
       {error && (
         <Box bg="red.100" p={4} mb={4} borderRadius="md">
           <Text color="red.800">Error: {error}</Text>
-          <Text>API may not be running. Make sure backend is started at localhost:5000</Text>
+          <Text>Please check if the backend API is running at localhost:5000</Text>
         </Box>
       )}
       
-      {isLoading ? (
-        <Center p={10}>
-          <Spinner size="xl" color="green.500" />
-        </Center>
-      ) : (
-        <>
-          <Flex width={'100%'} alignContent={"center"} justifyContent={"center"}>
-            <AvatarGroup alignContent={"center"} justifyContent={"center"} >
-              <Avatar name="User 1" src="https://ui-avatars.com/api/?name=Spotify+User" size={"2xl"} />
-              <Avatar name="User 2" src="https://ui-avatars.com/api/?name=Music+Friend" size={"2xl"} />
-            </AvatarGroup>
-          </Flex>
-          <Tabs variant='enclosed' size={'lg'} width={'100%'} align='center' alignContent={"center"} position="absolute" top="50%" transform="translateY(-50%)">
-            <TabList>
-              <Tab>Song Comparison</Tab>
-              <Tab>Music Taste</Tab>
-            </TabList>
-            <TabPanels>
-              <TabPanel>
-                <Text fontSize="xl" mb={4}>Welcome to Spotify Comparison!</Text>
-                {isAuthenticated ? (
-                  <Text color="green.500" fontWeight="bold">
-                    You're logged in. Go to the "Music Taste" tab to see your data.
-                  </Text>
-                ) : (
-                  <LoginButton />
+      <Tabs variant="enclosed" size="lg" colorScheme="green" isLazy>
+        <TabList>
+          <Tab>Music Comparison</Tab>
+          <Tab>My Music</Tab>
+        </TabList>
+        
+        <TabPanels>
+          {/* Music Comparison Tab */}
+          <TabPanel>
+            <Box textAlign="center" py={10}>
+              <Heading size="xl" mb={6}>Compare Your Music Taste</Heading>
+              <AvatarGroup size="xl" max={2} mb={6} spacing="-1rem">
+                {userData.player1.saved && (
+                  <Avatar 
+                    name={userData.player1.name} 
+                    src={userData.player1.picture} 
+                    bg="green.500"
+                    boxSize="100px"
+                    border="3px solid white"
+                  />
                 )}
-              </TabPanel>
-              <TabPanel bg={"gray.100"} borderRadius="md">
-                {isAuthenticated ? (
-                  <TabGroup />
+                {userData.player2.saved ? (
+                  <Avatar 
+                    name={userData.player2.name} 
+                    src={userData.player2.picture} 
+                    bg="blue.500"
+                    boxSize="100px"
+                    border="3px solid white"
+                  />
                 ) : (
-                  <Center py={10}>
-                    <Text>Please login first to view your music taste</Text>
-                  </Center>
+                  <Avatar 
+                    name="Friend" 
+                    src="https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png" 
+                    bg="gray.400"
+                    boxSize="100px"
+                    border="3px solid white"
+                  />
                 )}
-              </TabPanel>
-            </TabPanels>
-          </Tabs>
-        </>
-      )}
-    </Stack>
+              </AvatarGroup>
+              
+              <Text fontSize="lg" mb={6}>
+                {userData.player1.saved && userData.player2.saved ? (
+                  `Both users are logged in! Compare ${userData.player1.name} and ${userData.player2.name}'s music tastes.`
+                ) : isAuthenticated ? (
+                  "You're logged in! Now invite a friend to compare your music tastes."
+                ) : (
+                  "Login with Spotify to compare your music taste with friends."
+                )}
+              </Text>
+              
+              {isAuthenticated ? (
+                <Button 
+                  as="a" 
+                  href="/compare" 
+                  colorScheme="green" 
+                  size="lg"
+                >
+                  Go to Comparison Page
+                </Button>
+              ) : (
+                <LoginButton />
+              )}
+            </Box>
+          </TabPanel>
+          
+          {/* My Music Tab */}
+          <TabPanel bg="gray.50" borderRadius="md">
+            {isLoading ? (
+              <Center py={10}>
+                <Spinner size="xl" color="green.500" />
+              </Center>
+            ) : isAuthenticated ? (
+              <Box>
+                <Heading size="md" mb={4} textAlign="center">
+                  {userData?.player1?.name ? `${userData.player1.name}'s Top Music` : 'Your Top Music'}
+                </Heading>
+                <TabGroup />
+              </Box>
+            ) : (
+              <Center py={10} flexDirection="column">
+                <Text fontSize="lg" mb={4}>Please login to view your music</Text>
+                <LoginButton />
+              </Center>
+            )}
+          </TabPanel>
+        </TabPanels>
+      </Tabs>
+    </Container>
   );
 };
 

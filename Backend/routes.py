@@ -6,7 +6,13 @@ from collections import Counter
 import requests
 import json
 import datetime
+import os
+import logging
 from urllib.parse import urlencode
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 # User class from Orlando V2
 class User:
@@ -85,7 +91,8 @@ def top(p1, p2):
             return p1[a]
         else:
             return p2[A]
-    except:
+    except Exception as e:
+        logger.error(f"Error finding top song: {str(e)}")
         return 'No common songs found'
 
 def pointsLog(pShared):
@@ -279,7 +286,7 @@ json_string = {"data":
 
 @app.route("/api/card_data")
 def carddata():
-    """Return test card data for development"""
+    """Return card data for development"""
     token = get_token_from_header()
     if token:
         # In a real production app, we would fetch this from Spotify API
@@ -296,6 +303,10 @@ def testdata():
 @app.route("/api/user_status")
 def user_status():
     """Return the login status of both users"""
+    logger.debug(f"User status request - Player1: {player1.saved}, Player2: {player2.saved}")
+    logger.debug(f"Player1 details: name={player1.name}, picture={player1.picture}")
+    logger.debug(f"Player2 details: name={player2.name}, picture={player2.picture}")
+    
     return jsonify({
         "player1": {
             "saved": player1.saved, 
@@ -316,16 +327,19 @@ def player_login(player_id):
         return jsonify({"error": "Invalid player ID"}), 400
     
     session['current_player'] = player_id
+    logger.debug(f"Starting login flow for player {player_id}")
     return redirect('/login')
 
 @app.route("/api/save_user_data")
 def save_user_data():
     """Save user data after Spotify login"""
     if 'access_token' not in session:
+        logger.error("No access token in session")
         return jsonify({"error": "No access token found"}), 401
     
     # Identify which player we're saving data for
     player_id = session.get('current_player', 1)
+    logger.debug(f"Saving data for player {player_id}")
     
     # Fetch user data from Spotify API
     headers = {
@@ -333,54 +347,89 @@ def save_user_data():
     }
     
     try:
+        # Get profile first to set basic user info
+        profile_response = requests.get(f"{API_BASE_URL}me", headers=headers)
+        if not profile_response.ok:
+            logger.error(f"Failed to get profile: {profile_response.status_code} - {profile_response.text}")
+            return jsonify({"error": f"Failed to get profile: {profile_response.status_code}"}), 500
+        
+        profile = profile_response.json()
+        
         # Get top tracks for different time ranges
-        response = requests.get(f"{API_BASE_URL}me/top/tracks?time_range=short_term&limit=50", headers=headers)
-        data = response.json()
+        short_term_response = requests.get(f"{API_BASE_URL}me/top/tracks?time_range=short_term&limit=50", headers=headers)
+        if not short_term_response.ok:
+            logger.error(f"Failed to get short-term tracks: {short_term_response.status_code}")
+            return jsonify({"error": f"Failed to get tracks: {short_term_response.status_code}"}), 500
+        
+        short_tracks_data = short_term_response.json()
         shortTracks = []
-        for item in data.get("items", []):
+        for item in short_tracks_data.get("items", []):
+            image_url = None
+            if item["album"]["images"] and len(item["album"]["images"]) > 0:
+                image_url = item["album"]["images"][0]["url"]
+            
             shortTracks.append({
                 "name": item["name"],
                 "id": item["id"],
                 "artists_name": item["artists"][0]["name"],
                 "artists_id": item["artists"][0]["id"],
-                "image": item["album"]["images"][0]["url"] if item["album"]["images"] else None
+                "image": image_url
             })
 
-        response = requests.get(f"{API_BASE_URL}me/top/tracks?time_range=medium_term&limit=50", headers=headers)
-        data = response.json()
+        # Get medium term tracks
+        medium_term_response = requests.get(f"{API_BASE_URL}me/top/tracks?time_range=medium_term&limit=50", headers=headers)
+        if not medium_term_response.ok:
+            logger.error(f"Failed to get medium-term tracks: {medium_term_response.status_code}")
+            return jsonify({"error": f"Failed to get tracks: {medium_term_response.status_code}"}), 500
+        
+        medium_tracks_data = medium_term_response.json()
         medTracks = []
-        for item in data.get("items", []):
+        for item in medium_tracks_data.get("items", []):
+            image_url = None
+            if item["album"]["images"] and len(item["album"]["images"]) > 0:
+                image_url = item["album"]["images"][0]["url"]
+            
             medTracks.append({
                 "name": item["name"],
                 "id": item["id"],
                 "artists_name": item["artists"][0]["name"],
                 "artists_id": item["artists"][0]["id"],
-                "image": item["album"]["images"][0]["url"] if item["album"]["images"] else None
+                "image": image_url
             })
 
-        response = requests.get(f"{API_BASE_URL}me/top/tracks?time_range=long_term&limit=50", headers=headers)
-        data = response.json()
+        # Get long term tracks
+        long_term_response = requests.get(f"{API_BASE_URL}me/top/tracks?time_range=long_term&limit=50", headers=headers)
+        if not long_term_response.ok:
+            logger.error(f"Failed to get long-term tracks: {long_term_response.status_code}")
+            return jsonify({"error": f"Failed to get tracks: {long_term_response.status_code}"}), 500
+        
+        long_tracks_data = long_term_response.json()
         longTracks = []
-        for item in data.get("items", []):
+        for item in long_tracks_data.get("items", []):
+            image_url = None
+            if item["album"]["images"] and len(item["album"]["images"]) > 0:
+                image_url = item["album"]["images"][0]["url"]
+            
             longTracks.append({
                 "name": item["name"],
                 "id": item["id"],
                 "artists_name": item["artists"][0]["name"],
                 "artists_id": item["artists"][0]["id"],
-                "image": item["album"]["images"][0]["url"] if item["album"]["images"] else None
+                "image": image_url
             })
 
         # Get top artists and genres
-        response = requests.get(f"{API_BASE_URL}me/top/artists?time_range=medium_term&limit=50", headers=headers)
-        data = response.json()
-        topGenres = set()
-        topArtists = []
-        for artist in data.get("items", []):
-            topGenres.update(artist["genres"])
-            topArtists.append(artist)
+        artists_response = requests.get(f"{API_BASE_URL}me/top/artists?time_range=medium_term&limit=50", headers=headers)
+        if not artists_response.ok:
+            logger.error(f"Failed to get artists: {artists_response.status_code}")
+            return jsonify({"error": f"Failed to get artists: {artists_response.status_code}"}), 500
         
-        # Get user profile
-        profile = requests.get(f"{API_BASE_URL}me", headers=headers).json()
+        artists_data = artists_response.json()
+        topGenres = set()  # Using a set to avoid duplicates
+        topArtists = []
+        for artist in artists_data.get("items", []):
+            topGenres.update(artist.get("genres", []))  # Add multiple genres from each artist
+            topArtists.append(artist)
         
         # Save data to appropriate player
         player = player1 if player_id == 1 else player2
@@ -390,13 +439,16 @@ def save_user_data():
         player.topGenres = list(topGenres)
         player.topArtists = topArtists
         player.name = profile.get('display_name')
-        player.picture = profile.get("images")[0]["url"] if profile.get("images") else None
+        player.picture = profile.get("images")[0]["url"] if profile.get("images") and len(profile.get("images")) > 0 else None
         player.saved = True
         
         # Generate ID lists for comparison
         player.songsS, player.artistsS = idLists(player.shortTracks)
         player.songsM, player.artistsM = idLists(player.medTracks)
         player.songsL, player.artistsL = idLists(player.longTracks)
+        
+        logger.info(f"Successfully saved data for player {player_id}")
+        logger.debug(f"Player {player_id} details: name={player.name}, picture={player.picture}, saved={player.saved}")
         
         # Create an access token for redirecting to frontend
         access_token = session['access_token']
@@ -405,6 +457,7 @@ def save_user_data():
         return redirect(f"http://localhost:3000/?access_token={access_token}")
     
     except Exception as e:
+        logger.exception(f"Error saving user data: {str(e)}")
         return jsonify({"error": str(e)}), 500
     
 @app.route("/api/reset/<int:player_id>")
@@ -412,8 +465,10 @@ def reset_player(player_id):
     """Reset a player's data"""
     if player_id == 1:
         player1.__init__()
+        logger.debug("Reset player 1")
     elif player_id == 2:
         player2.__init__()
+        logger.debug("Reset player 2")
     else:
         return jsonify({"error": "Invalid player ID"}), 400
     
@@ -424,12 +479,14 @@ def reset_all():
     """Reset both players' data"""
     player1.__init__()
     player2.__init__()
+    logger.debug("Reset all players")
     return jsonify({"success": True})
 
 @app.route("/api/comparison")
 def get_comparison():
     """Get comparison results between the two users"""
     if not player1.saved or not player2.saved:
+        logger.error("Attempted comparison but not all users are logged in")
         return jsonify({"error": "Both users need to be logged in"}), 400
     
     headers = {
@@ -438,11 +495,14 @@ def get_comparison():
     
     try:
         # Compute comparisons for all time ranges
+        logger.debug("Computing comparisons")
+        
         resultsSHORT = produceV2results(player1.topGenres, player1.shortTracks, player2.topGenres, player2.shortTracks, headers)
         resultsMED = produceV2results(player1.topGenres, player1.medTracks, player2.topGenres, player2.medTracks, headers)
         resultsLONG = produceV2results(player1.topGenres, player1.longTracks, player2.topGenres, player2.longTracks, headers)
         
         # Merge results
+        logger.debug("Comparison complete")
         return jsonify({
             "success": True,
             "players": {
@@ -462,6 +522,7 @@ def get_comparison():
         })
     
     except Exception as e:
+        logger.exception(f"Error in comparison: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/player/<int:player_id>/tracks")

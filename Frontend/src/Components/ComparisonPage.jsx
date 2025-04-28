@@ -76,6 +76,7 @@ const ComparisonPage = () => {
       }
       
       const data = await response.json();
+      console.log("User status data:", data);
       setUserStatus(data);
       return data;
     } catch (error) {
@@ -189,24 +190,43 @@ const ComparisonPage = () => {
   }, [userStatus, comparison, fetchComparison]);
 
   const renderUserCard = (player, playerId) => (
-    <Card maxW="sm" mx="auto" boxShadow="md">
+    <Card maxW="sm" mx="auto" boxShadow="md" borderWidth="1px" overflow="hidden">
+      <Box bg="green.500" h="8px" w="100%" />
       <CardBody>
         <Center flexDirection="column">
           {player.saved ? (
             <>
-              <Avatar size="xl" name={player.name} src={player.picture} mb={4} />
+              <Avatar 
+                size="2xl" 
+                name={player.name} 
+                src={player.picture} 
+                mb={4} 
+                border="4px solid"
+                borderColor="green.500"
+              />
               <Heading size="md" mb={2}>{player.name}</Heading>
-              <Badge colorScheme="green" mb={4}>Connected</Badge>
-              <Button colorScheme="red" size="sm" onClick={() => resetPlayer(playerId)}>
+              <Badge colorScheme="green" mb={4} fontSize="0.8em" px={2} py={1}>CONNECTED</Badge>
+              <Button colorScheme="red" size="sm" onClick={() => resetPlayer(playerId)} mt={2}>
                 Reset User
               </Button>
             </>
           ) : (
             <>
-              <Avatar size="xl" mb={4} />
+              <Avatar 
+                size="2xl" 
+                mb={4} 
+                bg="gray.200"
+                icon={<Text fontSize="4xl" color="gray.400">?</Text>}
+              />
               <Heading size="md" mb={2}>Player {playerId}</Heading>
-              <Badge colorScheme="red" mb={4}>Not Connected</Badge>
-              <Button colorScheme="green" onClick={() => handleLogin(playerId)}>
+              <Badge colorScheme="red" mb={4} fontSize="0.8em" px={2} py={1}>NOT CONNECTED</Badge>
+              <Button 
+                colorScheme="green" 
+                onClick={() => handleLogin(playerId)}
+                size="md"
+                borderRadius="full"
+                px={6}
+              >
                 Login with Spotify
               </Button>
             </>
@@ -321,6 +341,7 @@ const ComparisonPage = () => {
                         borderRadius="md"
                         src={comparison.short_term.topSong.image || "https://via.placeholder.com/80"}
                         alt={comparison.short_term.topSong.name}
+                        fallbackSrc="https://via.placeholder.com/80"
                       />
                       <Box>
                         <Text fontWeight="bold">{comparison.short_term.topSong.name}</Text>
@@ -353,6 +374,7 @@ const ComparisonPage = () => {
                         borderRadius="md"
                         src={comparison.medium_term.topSong.image || "https://via.placeholder.com/80"}
                         alt={comparison.medium_term.topSong.name}
+                        fallbackSrc="https://via.placeholder.com/80"
                       />
                       <Box>
                         <Text fontWeight="bold">{comparison.medium_term.topSong.name}</Text>
@@ -385,6 +407,7 @@ const ComparisonPage = () => {
                         borderRadius="md"
                         src={comparison.long_term.topSong.image || "https://via.placeholder.com/80"}
                         alt={comparison.long_term.topSong.name}
+                        fallbackSrc="https://via.placeholder.com/80"
                       />
                       <Box>
                         <Text fontWeight="bold">{comparison.long_term.topSong.name}</Text>
