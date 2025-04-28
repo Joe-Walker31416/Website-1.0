@@ -1,26 +1,55 @@
-import { Box, Flex, Text, Button, useColorMode, IconButton, useColorModeValue } from '@chakra-ui/react';
+import { 
+  Box, 
+  Flex, 
+  Text, 
+  Button, 
+  useColorMode, 
+  IconButton,
+  useColorModeValue,
+  useToast
+} from '@chakra-ui/react';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 
-const Navbar = ({ setCurrentPage, currentPage }) => {
+const Navbar = ({ setIsAuthenticated }) => {
   const { colorMode, toggleColorMode } = useColorMode();
   const bg = useColorModeValue('white', 'gray.800');
   const color = useColorModeValue('gray.800', 'white');
+  const navigate = useNavigate();
+  const toast = useToast();
   
   const handleLogout = () => {
     localStorage.removeItem('access_token');
-    window.location.reload();
+    
+    // Trigger a storage event to notify other components
+    window.dispatchEvent(new Event('storage'));
+    
+    // Update authentication state if setIsAuthenticated was provided
+    if (setIsAuthenticated) {
+      setIsAuthenticated(false);
+    }
+    
+    toast({
+      title: "Logged out",
+      description: "You have been successfully logged out.",
+      status: "success",
+      duration: 3000,
+      isClosable: true,
+    });
+    
+    // Navigate to login page
+    navigate('/login');
   };
 
-  const NavItem = ({ page, label }) => (
+  const NavItem = ({ to, label }) => (
     <Box
+      as={RouterLink}
+      to={to}
       px={4}
       py={2}
       cursor="pointer"
-      fontWeight={currentPage === page ? "bold" : "normal"}
-      borderBottom={currentPage === page ? "2px solid" : "none"}
-      borderColor="green.500"
-      onClick={() => setCurrentPage(page)}
-      _hover={{ color: 'green.500' }}
+      fontWeight="medium"
+      _hover={{ color: 'green.500', textDecoration: 'none' }}
     >
       {label}
     </Box>
@@ -46,13 +75,17 @@ const Navbar = ({ setCurrentPage, currentPage }) => {
           fontSize="xl"
           fontWeight="bold"
           color="green.500"
+          as={RouterLink}
+          to="/"
+          _hover={{ textDecoration: 'none' }}
         >
           Spotify Taste Comparison
         </Text>
       </Flex>
 
       <Flex align="center">
-        <NavItem page="compare" label="Compare" />
+        <NavItem to="/compare" label="Compare" />
+        <NavItem to="/sections" label="My Music" />
         
         <Button
           size="sm"

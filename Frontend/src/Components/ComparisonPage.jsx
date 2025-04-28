@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { 
   Box, 
   Flex, 
@@ -31,6 +31,27 @@ import {
   useToast
 } from '@chakra-ui/react';
 
+// Custom hook for setInterval with React
+const useInterval = (callback, delay) => {
+  const savedCallback = useRef();
+
+  // Remember the latest callback
+  useEffect(() => {
+    savedCallback.current = callback;
+  }, [callback]);
+
+  // Set up the interval
+  useEffect(() => {
+    function tick() {
+      savedCallback.current();
+    }
+    if (delay !== null) {
+      const id = setInterval(tick, delay);
+      return () => clearInterval(id);
+    }
+  }, [delay]);
+};
+
 const ComparisonPage = () => {
   const [comparison, setComparison] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,13 +62,19 @@ const ComparisonPage = () => {
   });
   const toast = useToast();
 
-  // Fetch both users' status
-  const fetchUserStatus = async () => {
+  // Memoize fetch functions so they can be used in useEffect dependencies
+  const fetchUserStatus = useCallback(async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/user_status');
+      const response = await fetch('http://localhost:5000/api/user_status', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        }
+      });
+      
       if (!response.ok) {
         throw new Error('Failed to fetch user status');
       }
+      
       const data = await response.json();
       setUserStatus(data);
       return data;
@@ -56,10 +83,10 @@ const ComparisonPage = () => {
       setError(error.message);
       return null;
     }
-  };
+  }, []);
 
   // Fetch comparison data
-  const fetchComparison = async () => {
+  const fetchComparison = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await fetch('http://localhost:5000/api/comparison', {
@@ -80,17 +107,25 @@ const ComparisonPage = () => {
       setError(error.message);
       setIsLoading(false);
     }
-  };
+  }, []);
 
   // Reset a specific player
   const resetPlayer = async (playerId) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/reset/${playerId}`);
+      const response = await fetch(`http://localhost:5000/api/reset/${playerId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        }
+      });
+      
       if (!response.ok) {
         throw new Error('Failed to reset player');
       }
       
       await fetchUserStatus();
+      // Reset comparison data if one user is reset
+      setComparison(null);
+      
       toast({
         title: "Player Reset",
         description: `Player ${playerId} data has been reset.`,
@@ -115,8 +150,15 @@ const ComparisonPage = () => {
     window.location.href = `http://localhost:5000/api/login/${playerId}`;
   };
 
+  // Check for status updates more frequently when waiting for users
+  useInterval(() => {
+    if (!userStatus.player1.saved || !userStatus.player2.saved) {
+      fetchUserStatus();
+    }
+  }, 5000);
+
+  // Initial load
   useEffect(() => {
-    // Initial load of user status
     const initPage = async () => {
       const status = await fetchUserStatus();
       
@@ -130,22 +172,21 @@ const ComparisonPage = () => {
     
     initPage();
     
-    // Poll for updates every 5 seconds if not all users are logged in
-    const interval = setInterval(() => {
-      if (!userStatus.player1.saved || !userStatus.player2.saved) {
-        fetchUserStatus();
-      }
-    }, 5000);
+    // Listen for changes from auth redirects
+    const handleStorageChange = () => {
+      fetchUserStatus();
+    };
     
-    return () => clearInterval(interval);
-  }, []);
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [fetchUserStatus, fetchComparison]);
 
   // When both users become logged in, fetch comparison
   useEffect(() => {
     if (userStatus.player1.saved && userStatus.player2.saved && !comparison) {
       fetchComparison();
     }
-  }, [userStatus]);
+  }, [userStatus, comparison, fetchComparison]);
 
   const renderUserCard = (player, playerId) => (
     <Card maxW="sm" mx="auto" boxShadow="md">

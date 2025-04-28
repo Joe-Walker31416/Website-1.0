@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Box, ChakraProvider, Spinner, Center } from '@chakra-ui/react';
+import { Box, ChakraProvider, Spinner, Center, useToast } from '@chakra-ui/react';
 import Background from './Components/Background';
 import LoginPage from './Components/LoginPage';
 import Sections from './Components/Sections';
@@ -10,8 +10,9 @@ import Navbar from './Components/Navbar';
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
+  
+  // Check for authentication
+  const checkAuth = useCallback(() => {
     // Check for token in URL params (after Spotify redirect)
     const params = new URLSearchParams(window.location.search);
     const token = params.get('access_token');
@@ -22,6 +23,8 @@ function App() {
       setIsAuthenticated(true);
       // Clean up URL
       window.history.replaceState({}, document.title, '/');
+      // Dispatch storage event so other components know about the auth change
+      window.dispatchEvent(new Event('storage'));
     } else {
       // Check if token exists in localStorage
       const storedToken = localStorage.getItem('access_token');
@@ -31,6 +34,22 @@ function App() {
     }
     setIsLoading(false);
   }, []);
+  
+  useEffect(() => {
+    checkAuth();
+    
+    // Listen for storage changes to update auth state
+    const handleStorageChange = () => {
+      const token = localStorage.getItem('access_token');
+      setIsAuthenticated(!!token);
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [checkAuth]);
   
   if (isLoading) {
     return (
@@ -42,7 +61,7 @@ function App() {
 
   return (
     <Router>
-      {isAuthenticated && <Navbar />}
+      {isAuthenticated && <Navbar setIsAuthenticated={setIsAuthenticated} />}
       <Box pt={isAuthenticated ? "70px" : 0}>
         <Routes>
           <Route 
