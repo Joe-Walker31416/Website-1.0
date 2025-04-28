@@ -75,6 +75,18 @@ def callback():
     return redirect(f"http://localhost:3000/?access_token={access_token}")
 
 
+def get_token_from_header():
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return None
+    try:
+        auth_type, token = auth_header.split()
+        if auth_type.lower() != 'bearer':
+            return None
+        return token
+    except ValueError:
+        return None
+
 frontend_folder=os.path.join(os.getcwd(),"..","Frontend")
 dist_folder=os.path.join(frontend_folder,"dist")
 

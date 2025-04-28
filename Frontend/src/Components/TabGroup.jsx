@@ -15,14 +15,19 @@ const TabGroup = () => {
 
   const getData = async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/card_data");
+      const token = localStorage.getItem('access_token');
+      const response = await fetch("http://localhost:5000/api/card_data", {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const result = await response.json();
       console.log("Fetched Data:", result); 
       setData(result); 
     } catch (error) {
       console.error("Error fetching data:", error);
     }
-  };
+  }
 
   useEffect(() => {
     getData();

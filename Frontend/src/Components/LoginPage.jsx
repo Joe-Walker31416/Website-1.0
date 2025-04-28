@@ -1,5 +1,5 @@
 // LoginPage.jsx
-import { Box, Button, Text, VStack } from '@chakra-ui/react';
+import { Box, Button, Text, VStack, Heading } from '@chakra-ui/react';
 
 const LoginPage = () => {
   const handleLogin = () => {
@@ -7,10 +7,23 @@ const LoginPage = () => {
   };
 
   return (
-    <Box h="100vh" bg="gray.900" color="white" display="flex" justifyContent="center" alignItems="center">
-      <VStack spacing={4}>
-        <Text fontSize="2xl">Welcome to My Spotify App</Text>
-        <Button colorScheme="green" size="lg" onClick={handleLogin}>
+    <Box 
+      h="100vh" 
+      bg="gray.900" 
+      color="white" 
+      display="flex" 
+      justifyContent="center" 
+      alignItems="center"
+    >
+      <VStack spacing={6} p={8} bg="gray.800" borderRadius="lg" boxShadow="xl">
+        <Heading>Welcome to Spotify Comparison!</Heading>
+        <Text fontSize="lg">Compare your music taste with friends</Text>
+        <Button 
+          colorScheme="green" 
+          size="lg" 
+          onClick={handleLogin}
+          _hover={{ bg: "green.500" }}
+        >
           Login with Spotify
         </Button>
       </VStack>
