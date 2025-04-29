@@ -4,7 +4,6 @@ import react from '@vitejs/plugin-react'
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current directory.
-  // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
   const env = loadEnv(mode, process.cwd(), '')
   
   return {
@@ -15,15 +14,10 @@ export default defineConfig(({ mode }) => {
     define: {
       'process.env.VITE_API_URL': JSON.stringify(env.VITE_API_URL || 'https://spotify-comparison-backend.onrender.com')
     },
+    // Simplified build config without terser
     build: {
       outDir: 'dist',
-      sourcemap: false,
-      minify: 'terser',
-      terserOptions: {
-        compress: {
-          drop_console: true,
-        },
-      },
+      sourcemap: false
     },
     optimizeDeps: {
       include: [
