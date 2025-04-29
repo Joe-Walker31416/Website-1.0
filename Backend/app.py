@@ -118,9 +118,18 @@ def callback():
     session['expires_at'] = datetime.datetime.now().timestamp() + token_info['expires_in']
     
     logger.info(f"Successfully obtained access token for player {session.get('current_player')}")
+    ##nEW CODE
+    frontend_url = os.environ.get('FRONTEND_URL', 'https://your-frontend-app.onrender.com')
     
-    # Save user data and redirect to frontend
-    return redirect('/api/save_user_data')
+    # Add access token as a query parameter for the frontend
+    token = session.get('access_token')
+    player_id = session.get('current_player', 1)
+    
+    # Redirect to the frontend with token
+    return redirect(f"{frontend_url}?access_token={token}&player_id={player_id}")
+
+    # # Save user data and redirect to frontend
+    # return redirect('/api/save_user_data')
 
 @app.route('/refresh-token')
 def refresh_token():
