@@ -62,76 +62,27 @@ const ComparisonPage = () => {
     player2: { saved: false, name: null, picture: null }
   });
   const toast = useToast();
-  const testBackendConnection = async () => {
-    try {
-      // Test direct API access without token
-      console.log("Testing basic API connectivity...");
-      const response = await fetch(config.API_URL + '/api/user_status');
-      console.log("Basic connection test:", response.status);
-      
-      // Now try with token
-      const tokenResponse = await fetch(config.API_URL + '/api/user_status', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-        }
-      });
-      console.log("Token connection test:", tokenResponse.status);
-      
-      // Try a simplified endpoint
-      const simpleResponse = await fetch(config.API_URL + '/login');
-      console.log("Simple endpoint test:", simpleResponse.status);
-    } catch (error) {
-      console.error("Backend connection test failed:", error);
-    }
-  };
-  useEffect(() => {
-    testBackendConnection();
-  }, []);
+
   // Memoize fetch functions so they can be used in useEffect dependencies
   const fetchUserStatus = useCallback(async () => {
-    const fetchUserStatus = async () => {
-      try {
-        console.log("Fetching user status...");
-        console.log("API URL:", config.API_URL + '/api/user_status');
-        
-        const token = localStorage.getItem('access_token');
-        console.log("Token exists:", !!token);
-        if (token) {
-          console.log("Token preview:", token.substring(0, 10) + "...");
-        }
-        
-        const response = await fetch(config.API_URL + '/api/user_status', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-          }
-        });
-        
-        console.log("Response status:", response.status);
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch user status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log("User status data:", data);
-        setUserStatus(data);
-        return data;
-      } catch (error) {
-        console.error('Error fetching user status:', error);
-        setError(error.message);
-        return null;
-      }
-    };
-    
     try {
-      const response = await fetch(config.API_URL +'/api/user_status', {
+      console.log("Fetching user status from:", config.API_URL + '/api/user_status');
+      const token = localStorage.getItem('access_token');
+      console.log("Token exists:", !!token);
+      if (token) {
+        console.log("Token preview:", token.substring(0, 10) + "...");
+      }
+      
+      const response = await fetch(config.API_URL + '/api/user_status', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          'Authorization': `Bearer ${token}`
         }
       });
       
+      console.log("Response status:", response.status);
+      
       if (!response.ok) {
-        throw new Error('Failed to fetch user status');
+        throw new Error(`Failed to fetch user status: ${response.status}`);
       }
       
       const data = await response.json();
@@ -149,17 +100,28 @@ const ComparisonPage = () => {
   const fetchComparison = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(config.API_URL +'/api/comparison', {
+      console.log("Fetching comparison from:", config.API_URL + '/api/comparison');
+      const token = localStorage.getItem('access_token');
+      console.log("Using token:", token ? "Yes (token exists)" : "No (token missing)");
+      
+      const response = await fetch(config.API_URL + '/api/comparison', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          'Authorization': `Bearer ${token}`
         }
       });
       
+      console.log("Comparison response status:", response.status);
+      
       if (!response.ok) {
-        throw new Error('Failed to fetch comparison data');
+        throw new Error(`Failed to fetch comparison data: ${response.status}`);
       }
       
       const data = await response.json();
+      console.log("Comparison data received:", data ? "Yes" : "No");
+      if (data) {
+        console.log("Data sample:", JSON.stringify(data).substring(0, 100) + "...");
+      }
+      
       setComparison(data);
       setIsLoading(false);
     } catch (error) {
@@ -207,56 +169,10 @@ const ComparisonPage = () => {
 
   // Handle login for a specific player
   const handleLogin = (playerId) => {
-    const apiUrl = import.meta.env.VITE_API_URL || 'https://your-backend-url.onrender.com';
-    window.location.href = `${apiUrl}/api/login/${playerId}`;
+    window.location.href = `${config.API_URL}/api/login/${playerId}`;
   };
 
-  // Check for status updates more frequently when waiting for users
-  useInterval(() => {
-    if (!userStatus.player1.saved || !userStatus.player2.saved) {
-      fetchUserStatus();
-    }
-  }, 5000);
-
-  // Initial load
-  useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    console.log("Token available:", !!token);
-    if (token) {
-      // Only show the first few characters for security
-      console.log("Token preview:", token.substring(0, 10) + "...");
-    }
-    console.log("API URL:", config.API_URL);
-  
-    const initPage = async () => {
-      const status = await fetchUserStatus();
-      
-      // If both users are logged in, fetch comparison data
-      if (status && status.player1.saved && status.player2.saved) {
-        fetchComparison();
-      } else {
-        setIsLoading(false);
-      }
-    };
-    
-    initPage();
-    
-    // Listen for changes from auth redirects
-    const handleStorageChange = () => {
-      fetchUserStatus();
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, [fetchUserStatus, fetchComparison]);
-
-  // When both users become logged in, fetch comparison
-  useEffect(() => {
-    if (userStatus.player1.saved && userStatus.player2.saved && !comparison) {
-      fetchComparison();
-    }
-  }, [userStatus, comparison, fetchComparison]);
-
+  // The renderUserCard function that was missing
   const renderUserCard = (player, playerId) => (
     <Card maxW="sm" mx="auto" boxShadow="md" borderWidth="1px" overflow="hidden">
       <Box bg="green.500" h="8px" w="100%" />
@@ -304,6 +220,7 @@ const ComparisonPage = () => {
     </Card>
   );
 
+  // Helper function to render score cards
   const renderScoreCard = (title, score, color = "green") => (
     <Stat 
       p={4} 
@@ -324,6 +241,53 @@ const ComparisonPage = () => {
       />
     </Stat>
   );
+
+  // Check for status updates more frequently when waiting for users
+  useInterval(() => {
+    if (!userStatus.player1.saved || !userStatus.player2.saved) {
+      fetchUserStatus();
+    }
+  }, 5000);
+
+  // Initial load
+  useEffect(() => {
+    console.log("ComparisonPage mounted");
+    console.log("API URL being used:", config.API_URL);
+    const token = localStorage.getItem('access_token');
+    console.log("Token available:", !!token);
+    if (token) {
+      // Only show the first few characters for security
+      console.log("Token preview:", token.substring(0, 10) + "...");
+    }
+  
+    const initPage = async () => {
+      const status = await fetchUserStatus();
+      
+      // If both users are logged in, fetch comparison data
+      if (status && status.player1.saved && status.player2.saved) {
+        fetchComparison();
+      } else {
+        setIsLoading(false);
+      }
+    };
+    
+    initPage();
+    
+    // Listen for changes from auth redirects
+    const handleStorageChange = () => {
+      fetchUserStatus();
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [fetchUserStatus, fetchComparison]);
+
+  // When both users become logged in, fetch comparison
+  useEffect(() => {
+    if (userStatus.player1.saved && userStatus.player2.saved && !comparison) {
+      fetchComparison();
+    }
+  }, [userStatus, comparison, fetchComparison]);
 
   // If there's an error, show the error message
   if (error) {
