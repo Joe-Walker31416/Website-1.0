@@ -149,9 +149,10 @@ const ComparisonPage = () => {
 
   // Handle login for a specific player
   const handleLogin = (playerId) => {
-    window.location.href = config.API_URL +`/api/login/${playerId}`;
+    const apiUrl = import.meta.env.VITE_API_URL || 'https://your-backend-url.onrender.com';
+    window.location.href = `${apiUrl}/api/login/${playerId}`;
   };
-
+  
   // Check for status updates more frequently when waiting for users
   useInterval(() => {
     if (!userStatus.player1.saved || !userStatus.player2.saved) {
