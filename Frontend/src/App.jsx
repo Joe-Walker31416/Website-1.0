@@ -51,14 +51,7 @@ function App() {
     };
   }, [checkAuth]);
   
-  if (isLoading) {
-    return (
-      <Center height="100vh">
-        <Spinner size="xl" color="green.500" thickness="4px" />
-      </Center>
-    );
-  }
-
+  // Second useEffect - moved BEFORE conditional return
   useEffect(() => {
     // Extract token from URL if present
     const params = new URLSearchParams(window.location.search);
@@ -77,6 +70,15 @@ function App() {
       console.log("Token captured from URL and saved");
     }
   }, []);
+  
+  if (isLoading) {
+    return (
+      <Center height="100vh">
+        <Spinner size="xl" color="green.500" thickness="4px" />
+      </Center>
+    );
+  }
+
   return (
     <Router>
       {isAuthenticated && <Navbar setIsAuthenticated={setIsAuthenticated} />}
