@@ -10,6 +10,19 @@ import os
 import logging
 from urllib.parse import urlencode
 
+from flask import jsonify, request, session, redirect
+import logging
+
+# Configure better logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# Add this as a new dictionary to store tokens
+player_tokens = {
+    1: None,
+    2: None
+}
+
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -72,16 +85,32 @@ def shareds(p1, p2):
 def top(p1, p2):
     """Find the top common song between users"""
     try:
+        # Add extra safety check for empty lists
+        if not p1 or not p2:
+            return 'No common songs found'
+            
+        found_common = False
         for i in range(len(p1)):
             if p1[i] in p2:
                 a = i
                 b = p2.index(p1[i])
+                found_common = True
                 break
+                
+        if not found_common:
+            return 'No common songs found'
+            
+        found_common = False
         for i in range(len(p2)):
             if p2[i] in p1:
                 B = p1.index(p2[i])
                 A = i
+                found_common = True
                 break
+                
+        if not found_common:
+            return 'No common songs found'
+            
         c = a + b
         C = A + B
         # Returns top song
@@ -111,161 +140,216 @@ def sharedsV2(a, b):
 
 def simTopSongs(topSongs1, topSongs2):
     """Calculate similarity between top songs"""
-    ids1 = [song['id'] for song in topSongs1]
-    ids2 = [song['id'] for song in topSongs2]
-    return pointsLog(sharedsV2(ids1, ids2))
+    try:
+        ids1 = [song['id'] for song in topSongs1]
+        ids2 = [song['id'] for song in topSongs2]
+        return pointsLog(sharedsV2(ids1, ids2))
+    except Exception as e:
+        logger.error(f"Error in simTopSongs: {str(e)}")
+        return 0
 
 def simEras(topSongs1, topSongs2, headers):
     """Calculate similarity of music eras between users"""
-    def getTrackData(trackIds):
-        # Break into chunks of 50 (max allowed by Spotify)
-        trackData = []
-        for i in range(0, len(trackIds), 50):
-            idsChunk = ",".join([track['id'] for track in trackIds[i:i+50]])
-            url = f"{API_BASE_URL}tracks?ids={idsChunk}"
-            resp = requests.get(url, headers=headers).json()
-            trackData.extend(resp.get("tracks", []))
-        return trackData
+    try:
+        def getTrackData(trackIds):
+            # Break into chunks of 50 (max allowed by Spotify)
+            trackData = []
+            for i in range(0, len(trackIds), 50):
+                idsChunk = ",".join([track['id'] for track in trackIds[i:i+50]])
+                url = f"{API_BASE_URL}tracks?ids={idsChunk}"
+                resp = requests.get(url, headers=headers)
+                
+                # Check if request was successful
+                if resp.status_code != 200:
+                    logger.error(f"Error fetching track data: {resp.status_code} - {resp.text}")
+                    continue
+                    
+                data = resp.json()
+                trackData.extend(data.get("tracks", []))
+            return trackData
 
-    def getAlbumYears(albumIds):
-        albumYears = {}
-        for i in range(0, len(albumIds), 20):  # Albums endpoint limit = 20
-            idsChunk = ",".join(albumIds[i:i+20])
-            url = f"{API_BASE_URL}albums?ids={idsChunk}"
-            resp = requests.get(url, headers=headers).json()
-            for album in resp.get("albums", []):
-                release = album.get("release_date", "")[:4]
-                try:
-                    year = int(release)
-                    decade = (year // 10) * 10
-                    albumYears[album["id"]] = decade
-                except ValueError:
-                    continue  # Skip if year is invalid
-        return albumYears
+        def getAlbumYears(albumIds):
+            albumYears = {}
+            for i in range(0, len(albumIds), 20):  # Albums endpoint limit = 20
+                idsChunk = ",".join(albumIds[i:i+20])
+                url = f"{API_BASE_URL}albums?ids={idsChunk}"
+                resp = requests.get(url, headers=headers)
+                
+                # Check if request was successful
+                if resp.status_code != 200:
+                    logger.error(f"Error fetching album data: {resp.status_code} - {resp.text}")
+                    continue
+                    
+                data = resp.json()
+                for album in data.get("albums", []):
+                    release = album.get("release_date", "")[:4]
+                    try:
+                        year = int(release)
+                        decade = (year // 10) * 10
+                        albumYears[album["id"]] = decade
+                    except ValueError:
+                        continue  # Skip if year is invalid
+            return albumYears
 
-    def getDecadeCounts(trackIds):
-        tracks = getTrackData(trackIds)
-        albumIds = [t["album"]["id"] for t in tracks if "album" in t]
-        albumDecades = getAlbumYears(albumIds)
-        decades = [albumDecades.get(t["album"]["id"]) for t in tracks if t["album"]["id"] in albumDecades]
-        return Counter(filter(None, decades))  # Remove None values
+        def getDecadeCounts(trackIds):
+            tracks = getTrackData(trackIds)
+            albumIds = [t["album"]["id"] for t in tracks if "album" in t]
+            albumDecades = getAlbumYears(albumIds)
+            decades = [albumDecades.get(t["album"]["id"]) for t in tracks if t["album"]["id"] in albumDecades]
+            return Counter(filter(None, decades))  # Remove None values
 
-    # Get frequency counts per decade
-    counts1 = getDecadeCounts(topSongs1)
-    counts2 = getDecadeCounts(topSongs2)
+        # Get frequency counts per decade
+        counts1 = getDecadeCounts(topSongs1)
+        counts2 = getDecadeCounts(topSongs2)
 
-    if not counts1 or not counts2:
+        if not counts1 or not counts2:
+            return 0
+
+        # Compute weighted similarity
+        sharedDecades = set(counts1) & set(counts2)
+        totalDecades = set(counts1) | set(counts2)
+
+        sharedWeight = sum(min(counts1[d], counts2[d]) for d in sharedDecades)
+        totalWeight = sum((counts1 | counts2).values())  # Union counts (max of each)
+
+        return (sharedWeight / totalWeight) * 100
+    except Exception as e:
+        logger.error(f"Error in simEras: {str(e)}")
         return 0
-
-    # Compute weighted similarity
-    sharedDecades = set(counts1) & set(counts2)
-    totalDecades = set(counts1) | set(counts2)
-
-    sharedWeight = sum(min(counts1[d], counts2[d]) for d in sharedDecades)
-    totalWeight = sum((counts1 | counts2).values())  # Union counts (max of each)
-
-    return (sharedWeight / totalWeight) * 100
 
 def simCharacteristics(topSongs1, topSongs2, headers):
     """Calculate similarity of song characteristics between users"""
-    def getAudioFeatures(trackIds):
-        features = []
-        for i in range(0, len(trackIds), 100):  # 100 is the max batch size for /audio-features
-            idsChunk = ",".join(trackIds[i:i+100])
-            url = f"{API_BASE_URL}audio-features?ids={idsChunk}"
-            resp = requests.get(url, headers=headers).json()
-            features.extend([f for f in resp.get("audio_features", []) if f])
-        return features
+    try:
+        def getAudioFeatures(trackIds):
+            features = []
+            for i in range(0, len(trackIds), 100):  # 100 is the max batch size for /audio-features
+                idsChunk = ",".join(trackIds[i:i+100])
+                url = f"{API_BASE_URL}audio-features?ids={idsChunk}"
+                resp = requests.get(url, headers=headers)
+                
+                # Check if request was successful
+                if resp.status_code != 200:
+                    logger.error(f"Error fetching audio features: {resp.status_code} - {resp.text}")
+                    continue
+                    
+                data = resp.json()
+                features.extend([f for f in data.get("audio_features", []) if f])
+            return features
 
-    # Spotify audio features to compare
-    FEATURE_KEYS = [
-        "acousticness", "danceability", "energy", "instrumentalness",
-        "liveness", "speechiness", "valence", "tempo"
-    ]
+        # Spotify audio features to compare
+        FEATURE_KEYS = [
+            "acousticness", "danceability", "energy", "instrumentalness",
+            "liveness", "speechiness", "valence", "tempo"
+        ]
 
-    def extractFeatureVector(features):
-        vectors = []
-        for f in features:
-            try:
-                vec = [f[k] for k in FEATURE_KEYS]
-                vectors.append(vec)
-            except KeyError:
-                continue
-        return np.mean(vectors, axis=0) if vectors else None
+        def extractFeatureVector(features):
+            vectors = []
+            for f in features:
+                try:
+                    vec = [f[k] for k in FEATURE_KEYS]
+                    vectors.append(vec)
+                except KeyError:
+                    continue
+            return np.mean(vectors, axis=0) if vectors else None
 
-    # Get features and mean vectors
-    features1 = getAudioFeatures([track["id"] for track in topSongs1])
-    features2 = getAudioFeatures([track["id"] for track in topSongs2])
-    vec1 = extractFeatureVector(features1)
-    vec2 = extractFeatureVector(features2)
+        # Get features and mean vectors
+        features1 = getAudioFeatures([track["id"] for track in topSongs1])
+        features2 = getAudioFeatures([track["id"] for track in topSongs2])
+        vec1 = extractFeatureVector(features1)
+        vec2 = extractFeatureVector(features2)
 
-    if vec1 is None or vec2 is None:
+        if vec1 is None or vec2 is None:
+            return 0
+
+        # Cosine similarity
+        dot = np.dot(vec1, vec2)
+        norm1 = np.linalg.norm(vec1)
+        norm2 = np.linalg.norm(vec2)
+        similarity = dot / (norm1 * norm2)
+
+        return similarity * 100
+    except Exception as e:
+        logger.error(f"Error in simCharacteristics: {str(e)}")
         return 0
-
-    # Cosine similarity
-    dot = np.dot(vec1, vec2)
-    norm1 = np.linalg.norm(vec1)
-    norm2 = np.linalg.norm(vec2)
-    similarity = dot / (norm1 * norm2)
-
-    return similarity * 100
-
+   
 def simGenres(genres1, genres2):
     """Calculate similarity of genres between users"""
-    shared = len(set(genres1).intersection(set(genres2)))
-    total = len(set(genres1).union(set(genres2)))
-    if total == 0:
+    try:
+        # Add extra safety check for empty lists
+        if not genres1 or not genres2:
+            return 0
+            
+        shared = len(set(genres1).intersection(set(genres2)))
+        total = len(set(genres1).union(set(genres2)))
+        if total == 0:
+            return 0
+        return (shared / total) * 100
+    except Exception as e:
+        logger.error(f"Error in simGenres: {str(e)}")
         return 0
-    return (shared / total) * 100
 
 def produceV2results(genres1, topSongs1, genres2, topSongs2, headers):
     """Calculate overall similarity between users"""
-    weightingsDict = {
-        'simTopSongs': 0.35,
-        'simEras': 0.2,
-        'simCharacteristics': 0,
-        'simGenres': 0.45
-    }
-    
-    # Run each similarity function
-    topSongsScore = simTopSongs(topSongs1, topSongs2)
-    erasScore = pointsLog(simEras(topSongs1, topSongs2, headers))
-    characteristicsScore = pointsLog(simCharacteristics(topSongs1, topSongs2, headers))
-    genresScore = pointsLog(simGenres(genres1, genres2))
+    try:
+        # Set up weightings for different similarity components
+        weightingsDict = {
+            'simTopSongs': 0.35,
+            'simEras': 0.2,
+            'simCharacteristics': 0,
+            'simGenres': 0.45
+        }
+        
+        # Run each similarity function with error handling
+        topSongsScore = simTopSongs(topSongs1, topSongs2)
+        erasScore = pointsLog(simEras(topSongs1, topSongs2, headers))
+        characteristicsScore = pointsLog(simCharacteristics(topSongs1, topSongs2, headers))
+        genresScore = pointsLog(simGenres(genres1, genres2))
 
-    # Weighted average
-    finalScore = (
-        topSongsScore * weightingsDict['simTopSongs'] +
-        erasScore * weightingsDict['simEras'] +
-        characteristicsScore * weightingsDict['simCharacteristics'] +
-        genresScore * weightingsDict['simGenres']
-    )
+        # Weighted average
+        finalScore = (
+            topSongsScore * weightingsDict['simTopSongs'] +
+            erasScore * weightingsDict['simEras'] +
+            characteristicsScore * weightingsDict['simCharacteristics'] +
+            genresScore * weightingsDict['simGenres']
+        )
 
-    # Get top common song
-    ids1 = [song['id'] for song in topSongs1]
-    ids2 = [song['id'] for song in topSongs2]
-    topSongId = top(ids1, ids2)
-    
-    # Find song details from ID
-    topSongDetails = {}
-    for song in topSongs1:
-        if song['id'] == topSongId:
-            topSongDetails = song
-            break
-    if not topSongDetails:
-        for song in topSongs2:
+        # Get top common song
+        ids1 = [song['id'] for song in topSongs1]
+        ids2 = [song['id'] for song in topSongs2]
+        topSongId = top(ids1, ids2)
+        
+        # Find song details from ID
+        topSongDetails = {}
+        for song in topSongs1:
             if song['id'] == topSongId:
                 topSongDetails = song
                 break
-    
-    return {
-        'topSongsScore': round(topSongsScore, 2),
-        'erasScore': round(erasScore, 2),
-        'characteristicsScore': round(characteristicsScore, 2),
-        'genresScore': round(genresScore, 2),
-        'finalScore': round(finalScore, 2),
-        'topSong': topSongDetails if topSongDetails else {"name": "No common song found", "artists_name": ""}
-    }
+        if not topSongDetails:
+            for song in topSongs2:
+                if song['id'] == topSongId:
+                    topSongDetails = song
+                    break
+        
+        # Return results with proper rounding
+        return {
+            'topSongsScore': round(topSongsScore, 2),
+            'erasScore': round(erasScore, 2),
+            'characteristicsScore': round(characteristicsScore, 2),
+            'genresScore': round(genresScore, 2),
+            'finalScore': round(finalScore, 2),
+            'topSong': topSongDetails if topSongDetails else {"name": "No common song found", "artists_name": ""}
+        }
+    except Exception as e:
+        logger.error(f"Error in produceV2results: {str(e)}")
+        # Return a default result structure to prevent frontend errors
+        return {
+            'topSongsScore': 0,
+            'erasScore': 0,
+            'characteristicsScore': 0,
+            'genresScore': 0,
+            'finalScore': 0,
+            'topSong': {"name": "No common song found", "artists_name": ""}
+        }
 
 # ======================
 # API Routes
@@ -287,66 +371,86 @@ json_string = {"data":
 @app.route("/api/card_data")
 def carddata():
     """Return card data for development"""
-    token = get_token_from_header()
-    if token:
-        # In a real production app, we would fetch this from Spotify API
-        # Right now, returning test data
-        return jsonify([(song['name'], song['artists_name'], song['image']) for song in json_string["data"]])
-    return jsonify({"error": "Unauthorized"}), 401
+    try:
+        token = get_token_from_header()
+        if token:
+            # In a real production app, we would fetch this from Spotify API
+            # Right now, returning test data
+            return jsonify([(song['name'], song['artists_name'], song['image']) for song in json_string["data"]])
+        return jsonify({"error": "Unauthorized"}), 401
+    except Exception as e:
+        logger.error(f"Error in card_data endpoint: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/testdata")
 def testdata():
     """Test data endpoint"""
-    return jsonify([(song['name'], song['image']) for song in json_string["data"]])
+    try:
+        return jsonify([(song['name'], song['image']) for song in json_string["data"]])
+    except Exception as e:
+        logger.error(f"Error in testdata endpoint: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 # New endpoints for two-user functionality
 @app.route("/api/user_status")
 def user_status():
     """Return the login status of both users"""
-    logger.debug(f"User status request - Player1: {player1.saved}, Player2: {player2.saved}")
-    logger.debug(f"Player1 details: name={player1.name}, picture={player1.picture}")
-    logger.debug(f"Player2 details: name={player2.name}, picture={player2.picture}")
-    
-    return jsonify({
-        "player1": {
-            "saved": player1.saved, 
-            "name": player1.name, 
-            "picture": player1.picture
-        },
-        "player2": {
-            "saved": player2.saved, 
-            "name": player2.name, 
-            "picture": player2.picture
-        }
-    })
+    try:
+        logger.debug(f"User status request - Player1: {player1.saved}, Player2: {player2.saved}")
+        logger.debug(f"Player1 details: name={player1.name}, picture={player1.picture}")
+        logger.debug(f"Player2 details: name={player2.name}, picture={player2.picture}")
+        
+        return jsonify({
+            "player1": {
+                "saved": player1.saved, 
+                "name": player1.name, 
+                "picture": player1.picture
+            },
+            "player2": {
+                "saved": player2.saved, 
+                "name": player2.name, 
+                "picture": player2.picture
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error in user_status endpoint: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/login/<int:player_id>")
 def player_login(player_id):
     """Initiate login flow for a specific player"""
-    if player_id not in [1, 2]:
-        return jsonify({"error": "Invalid player ID"}), 400
-    
-    session['current_player'] = player_id
-    logger.debug(f"Starting login flow for player {player_id}")
-    return redirect('/login')
+    try:
+        if player_id not in [1, 2]:
+            return jsonify({"error": "Invalid player ID"}), 400
+        
+        session['current_player'] = player_id
+        logger.debug(f"Starting login flow for player {player_id}")
+        return redirect('/login')
+    except Exception as e:
+        logger.error(f"Error in player_login endpoint: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/save_user_data")
 def save_user_data():
     """Save user data after Spotify login"""
-    if 'access_token' not in session:
-        logger.error("No access token in session")
-        return jsonify({"error": "No access token found"}), 401
-    
-    # Identify which player we're saving data for
-    player_id = session.get('current_player', 1)
-    logger.debug(f"Saving data for player {player_id}")
-    
-    # Fetch user data from Spotify API
-    headers = {
-        'Authorization': f"Bearer {session['access_token']}"
-    }
-    
     try:
+        if 'access_token' not in session:
+            logger.error("No access token in session")
+            return jsonify({"error": "No access token found"}), 401
+        
+        # Identify which player we're saving data for
+        player_id = session.get('current_player', 1)
+        logger.debug(f"Saving data for player {player_id}")
+        
+        # IMPORTANT: Store the token in our player_tokens dictionary
+        player_tokens[player_id] = session['access_token']
+        logger.debug(f"Saved token for player {player_id}")
+        
+        # Fetch user data from Spotify API
+        headers = {
+            'Authorization': f"Bearer {session['access_token']}"
+        }
+        
         # Get profile first to set basic user info
         profile_response = requests.get(f"{API_BASE_URL}me", headers=headers)
         if not profile_response.ok:
@@ -452,48 +556,103 @@ def save_user_data():
         
         # Create an access token for redirecting to frontend
         access_token = session['access_token']
-        
         # Redirect to the frontend with the token
-        return redirect(f"http://localhost:3000/?access_token={access_token}")
+        return redirect(f"http://localhost:3000/?access_token={session['access_token']}&player_id={player_id}")
     
     except Exception as e:
         logger.exception(f"Error saving user data: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
     
 @app.route("/api/reset/<int:player_id>")
 def reset_player(player_id):
     """Reset a player's data"""
-    if player_id == 1:
-        player1.__init__()
-        logger.debug("Reset player 1")
-    elif player_id == 2:
-        player2.__init__()
-        logger.debug("Reset player 2")
-    else:
-        return jsonify({"error": "Invalid player ID"}), 400
-    
-    return jsonify({"success": True})
+    try:
+        if player_id == 1:
+            player1.__init__()
+            player_tokens[1] = None  # Clear the token
+            logger.debug("Reset player 1")
+        elif player_id == 2:
+            player2.__init__()
+            player_tokens[2] = None  # Clear the token
+            logger.debug("Reset player 2")
+        else:
+            return jsonify({"error": "Invalid player ID"}), 400
+        
+        return jsonify({"success": True})
+    except Exception as e:
+        logger.error(f"Error in reset_player endpoint: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/reset_all")
 def reset_all():
     """Reset both players' data"""
-    player1.__init__()
-    player2.__init__()
-    logger.debug("Reset all players")
-    return jsonify({"success": True})
+    try:
+        player1.__init__()
+        player2.__init__()
+        player_tokens[1] = None  # Clear tokens
+        player_tokens[2] = None
+        logger.debug("Reset all players")
+        return jsonify({"success": True})
+    except Exception as e:
+        logger.error(f"Error in reset_all endpoint: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/comparison")
 def get_comparison():
     """Get comparison results between the two users"""
-    if not player1.saved or not player2.saved:
-        logger.error("Attempted comparison but not all users are logged in")
-        return jsonify({"error": "Both users need to be logged in"}), 400
-    
-    headers = {
-        'Authorization': f"Bearer {session['access_token']}"
-    }
-    
     try:
+        if not player1.saved or not player2.saved:
+            logger.error("Attempted comparison but not all users are logged in")
+            return jsonify({"error": "Both users need to be logged in"}), 400
+        
+        # IMPORTANT: Use player1's token for API calls since it was saved first
+        # This is the critical fix for the "No access token in session" error
+        if player_tokens[1]:
+            auth_token = player_tokens[1]
+            logger.debug("Using player 1's token for comparison")
+        elif player_tokens[2]:
+            auth_token = player_tokens[2]
+            logger.debug("Using player 2's token for comparison")
+        elif 'access_token' in session:
+            auth_token = session['access_token']
+            logger.debug("Using session token for comparison")
+        else:
+            logger.error("No access token available for comparison")
+            return jsonify({"error": "Authentication required"}), 401
+            
+        headers = {
+            'Authorization': f"Bearer {auth_token}"
+        }
+        
+        # Check if player data is valid
+        if not player1.shortTracks or not player2.shortTracks:
+            logger.error("Missing short term tracks data")
+            return jsonify({"error": "Missing user track data"}), 400
+            
+        if not player1.medTracks or not player2.medTracks:
+            logger.error("Missing medium term tracks data")
+            return jsonify({"error": "Missing user track data"}), 400
+            
+        if not player1.longTracks or not player2.longTracks:
+            logger.error("Missing long term tracks data")
+            return jsonify({"error": "Missing user track data"}), 400
+            
+        if not player1.topGenres or not player2.topGenres:
+            logger.error("Missing genre data")
+            return jsonify({"error": "Missing user genre data"}), 400
+        
+        # Ensure ID lists are generated
+        if not player1.songsS or not player1.songsM or not player1.songsL:
+            player1.songsS, player1.artistsS = idLists(player1.shortTracks)
+            player1.songsM, player1.artistsM = idLists(player1.medTracks)
+            player1.songsL, player1.artistsL = idLists(player1.longTracks)
+            
+        if not player2.songsS or not player2.songsM or not player2.songsL:
+            player2.songsS, player2.artistsS = idLists(player2.shortTracks)
+            player2.songsM, player2.artistsM = idLists(player2.medTracks)
+            player2.songsL, player2.artistsL = idLists(player2.longTracks)
+        
         # Compute comparisons for all time ranges
         logger.debug("Computing comparisons")
         
@@ -503,6 +662,8 @@ def get_comparison():
         
         # Merge results
         logger.debug("Comparison complete")
+        
+        # Return results
         return jsonify({
             "success": True,
             "players": {
@@ -524,40 +685,3 @@ def get_comparison():
     except Exception as e:
         logger.exception(f"Error in comparison: {str(e)}")
         return jsonify({"error": str(e)}), 500
-
-@app.route("/api/player/<int:player_id>/tracks")
-def get_player_tracks(player_id):
-    """Get a player's tracks for display"""
-    player = player1 if player_id == 1 else player2
-    
-    if not player.saved:
-        return jsonify({"error": "Player not logged in"}), 400
-    
-    time_range = request.args.get('time_range', 'medium')
-    
-    if time_range == 'short':
-        tracks = player.shortTracks
-    elif time_range == 'medium':
-        tracks = player.medTracks
-    elif time_range == 'long':
-        tracks = player.longTracks
-    else:
-        return jsonify({"error": "Invalid time range"}), 400
-    
-    return jsonify({
-        "success": True,
-        "tracks": tracks
-    })
-
-def get_token_from_header():
-    """Extract token from Authorization header"""
-    auth_header = request.headers.get('Authorization')
-    if not auth_header:
-        return None
-    try:
-        auth_type, token = auth_header.split()
-        if auth_type.lower() != 'bearer':
-            return None
-        return token
-    except ValueError:
-        return None
