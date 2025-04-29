@@ -1,3 +1,4 @@
+import config from '../config';
 import { 
   Box, 
   Spinner,
@@ -35,7 +36,7 @@ const Sections = () => {
     setIsLoading(true);
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:5000/api/user_status', {
+      const response = await fetch(config.API_URL +'/api/user_status', {
         headers: {
           'Authorization': `Bearer ${token}`
         }

@@ -1,9 +1,10 @@
 // LoginPage.jsx
+import config from '../config';
 import { Box, Button, Text, VStack, Heading } from '@chakra-ui/react';
 
 const LoginPage = () => {
   const handleLogin = () => {
-    window.location.href = 'http://localhost:5000/login';
+    window.location.href = config.API_URL + '/login';
   };
 
   return (

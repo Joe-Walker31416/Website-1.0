@@ -1,3 +1,4 @@
+import config from '../config';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { 
   Box, 
@@ -65,7 +66,7 @@ const ComparisonPage = () => {
   // Memoize fetch functions so they can be used in useEffect dependencies
   const fetchUserStatus = useCallback(async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/user_status', {
+      const response = await fetch(config.API_URL +'/api/user_status', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`
         }
@@ -90,7 +91,7 @@ const ComparisonPage = () => {
   const fetchComparison = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('http://localhost:5000/api/comparison', {
+      const response = await fetch(config.API_URL +'/api/comparison', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`
         }
@@ -113,7 +114,7 @@ const ComparisonPage = () => {
   // Reset a specific player
   const resetPlayer = async (playerId) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/reset/${playerId}`, {
+      const response = await fetch(config.API_URL + `/api/reset/${playerId}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`
         }
@@ -148,7 +149,7 @@ const ComparisonPage = () => {
 
   // Handle login for a specific player
   const handleLogin = (playerId) => {
-    window.location.href = `http://localhost:5000/api/login/${playerId}`;
+    window.location.href = config.API_URL +`/api/login/${playerId}`;
   };
 
   // Check for status updates more frequently when waiting for users

@@ -14,13 +14,15 @@ logging.basicConfig(level=logging.DEBUG,
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app, supports_credentials=True)
+# Use environment variable for CORS origin in production
+frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+CORS(app, supports_credentials=True, origins=[frontend_url])
 
 # Load environment variables from .env file
 load_dotenv()
 
-# Secret key for Flask Sessions
-app.secret_key = '53d355f8-571a-4590-a310-1f9579440851'
+# Secret key for Flask Sessions - use environment variable in production
+app.secret_key = os.environ.get('SECRET_KEY', '53d355f8-571a-4590-a310-1f9579440851')
 
 # Flask session config
 app.config['SESSION_TYPE'] = 'filesystem'
@@ -29,9 +31,10 @@ app.config['SESSION_USE_SIGNER'] = True
 Session(app)
 
 # Retrieve environment variables
-client_id = os.getenv('CLIENT_ID')
-client_secret = os.getenv('CLIENT_SECRET')
-redirect_uri = os.getenv('REDIRECT_URI')
+client_id = os.environ.get('CLIENT_ID')
+client_secret = os.environ.get('CLIENT_SECRET')
+# Use environment variable for redirect URI in production
+redirect_uri = os.environ.get('REDIRECT_URI', 'http://localhost:5000/callback')
 
 # Log configuration
 logger.info(f"Client ID: {client_id[:5]}..." if client_id else "CLIENT_ID not set")
@@ -41,7 +44,6 @@ logger.info(f"Redirect URI: {redirect_uri}")
 AUTH_URL = 'https://accounts.spotify.com/authorize'
 TOKEN_URL = 'https://accounts.spotify.com/api/token'
 API_BASE_URL = 'https://api.spotify.com/v1/'
-
 # =====================
 # Authentication Routes
 # =====================

@@ -1,6 +1,7 @@
 import {Box, Flex} from '@chakra-ui/react'
 import React from 'react'
 import Sections from './Sections';
+import config from '../config';
 
 const Background = () => {
   

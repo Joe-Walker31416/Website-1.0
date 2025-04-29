@@ -1,3 +1,4 @@
+import config from '../config';
 import { Button, useToast } from '@chakra-ui/react';
 import React from 'react';
 
@@ -15,7 +16,7 @@ const LoginButton = () => {
         }
         
         // Redirect to the backend login endpoint
-        window.location.href = 'http://localhost:5000/login';
+        window.location.href = config.API_URL +'/login';
     };
 
     return (

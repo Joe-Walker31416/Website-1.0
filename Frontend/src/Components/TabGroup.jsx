@@ -1,3 +1,4 @@
+import config from '../config';
 import React, { useEffect, useState, useCallback } from 'react';
 import { 
   Flex,  
@@ -49,7 +50,7 @@ const TabGroup = () => {
         return;
       }
       
-      const response = await fetch("http://localhost:5000/api/user_status", {
+      const response = await fetch(config.API_URL + "/api/user_status", {
         headers: {
           'Authorization': `Bearer ${token}`
         },
@@ -78,7 +79,7 @@ const TabGroup = () => {
       if (!token) return null;
       
       // Using the renamed endpoint to avoid conflict
-      const response = await fetch(`http://localhost:5000/api/all_user_tracks/${playerId}`, {
+      const response = await fetch(config.API_URL + '/api/all_user_tracks/${playerId}', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -161,7 +162,7 @@ const TabGroup = () => {
 
   // Handle login for player 2
   const handleLoginPlayer2 = () => {
-    window.location.href = `http://localhost:5000/api/login/2`;
+    window.location.href = config.API_URL + '/api/login/2';
   };
 
   // Component to display a single track

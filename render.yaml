@@ -1,0 +1,38 @@
+services:
+  # Backend API Service
+  - type: web
+    name: spotify-comparison-backend
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn wsgi:app
+    envVars:
+      - key: CLIENT_ID
+        sync: false
+      - key: CLIENT_SECRET
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: FRONTEND_URL
+        value: https://spotify-comparison-frontend.onrender.com
+      - key: REDIRECT_URI
+        value: https://spotify-comparison-backend.onrender.com/callback
+      - key: PYTHON_VERSION
+        value: 3.9.0
+
+  # Frontend Static Site
+  - type: web
+    name: spotify-comparison-frontend
+    env: static
+    buildCommand: cd Frontend && npm install && npm run build
+    staticPublishPath: ./Frontend/dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://spotify-comparison-backend.onrender.com
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
