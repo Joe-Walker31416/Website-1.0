@@ -37,7 +37,7 @@ from . import routes
 client_id = os.environ.get('CLIENT_ID')
 client_secret = os.environ.get('CLIENT_SECRET')
 # Use environment variable for redirect URI in production
-redirect_uri = os.environ.get('REDIRECT_URI', 'http://localhost:5000/callback')
+redirect_uri = os.environ.get('REDIRECT_URI')#, 'http://localhost:5000/callback')
 
 # Log configuration
 logger.info(f"Client ID: {client_id[:5]}..." if client_id else "CLIENT_ID not set")
@@ -119,7 +119,7 @@ def callback():
     
     logger.info(f"Successfully obtained access token for player {session.get('current_player')}")
     ##nEW CODE
-    frontend_url = os.environ.get('FRONTEND_URL', 'https://your-frontend-app.onrender.com')
+    frontend_url = os.environ.get('FRONTEND_URL', 'https://spotify-comparison-frontend.onrender.com')
     
     # Add access token as a query parameter for the frontend
     token = session.get('access_token')

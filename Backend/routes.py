@@ -557,7 +557,7 @@ def save_user_data():
         # Create an access token for redirecting to frontend
         access_token = session['access_token']
         # Redirect to the frontend with the token
-        return redirect(f"http://localhost:3000/?access_token={session['access_token']}&player_id={player_id}")
+        return redirect(f"https://spotify-comparison-frontend.onrender.com/?access_token={session['access_token']}&player_id={player_id}")
     
     except Exception as e:
         logger.exception(f"Error saving user data: {str(e)}")
