@@ -440,11 +440,11 @@ def save_user_data():
         
         # Identify which player we're saving data for
         player_id = session.get('current_player', 1)
-        logger.debug(f"Saving data for player {player_id}")
+        logger.info(f"Saving data for player {player_id}")
         
         # IMPORTANT: Store the token in our player_tokens dictionary
         player_tokens[player_id] = session['access_token']
-        logger.debug(f"Saved token for player {player_id}")
+        logger.info(f"Saved token for player {player_id}")
         
         # Fetch user data from Spotify API
         headers = {
@@ -887,37 +887,56 @@ def get_user_top_tracks(player_id, time_range):
     except Exception as e:
         logger.error(f"Error fetching tracks for player {player_id}: {str(e)}")
         return jsonify({"error": str(e)}), 500
-
-@app.route("/api/all_user_tracks/<int:player_id>")
-def get_all_user_tracks_data(player_id):
+    
+@app.route("/api/all_user_tracks/<int:playerId>")
+def get_all_user_tracks_data(playerId):
     """Get all time ranges of tracks for a user at once"""
-    if player_id not in [1, 2]:
+    logger.debug(f"Request for all tracks from player {playerId}")
+    
+    if playerId not in [1, 2]:
+        logger.error(f"Invalid player ID: {playerId}")
         return jsonify({"error": "Invalid player ID"}), 400
     
     try:
         # Get token from player_tokens or session
         token = None
-        if player_id in player_tokens and player_tokens[player_id]:
-            token = player_tokens[player_id]
+        if playerId in player_tokens and player_tokens[playerId]:
+            token = player_tokens[playerId]
+            logger.debug(f"Using saved token for player {playerId}")
         elif 'access_token' in session:
             token = session['access_token']
+            logger.debug("Using session token")
             
         if not token:
+            logger.error("No authentication token found")
             return jsonify({"error": "Authentication required"}), 401
             
         # Access player data
-        player = player1 if player_id == 1 else player2
+        player = player1 if playerId == 1 else player2
         
         if not player.saved:
-            return jsonify({"error": f"Player {player_id} not logged in"}), 400
+            logger.error(f"Player {playerId} not logged in")
+            return jsonify({"error": f"Player {playerId} not logged in"}), 400
+        
+        # Debug player data
+        logger.debug(f"Player {playerId} data: name={player.name}, saved={player.saved}")
+        logger.debug(f"Short tracks count: {len(player.shortTracks) if player.shortTracks else 0}")
+        logger.debug(f"Medium tracks count: {len(player.medTracks) if player.medTracks else 0}")
+        logger.debug(f"Long tracks count: {len(player.longTracks) if player.longTracks else 0}")
             
-        # Format and include album images for all tracks
+        # Build response without images for simplicity
         formatted_tracks = {
-            "short": [],
-            "medium": [],
-            "long": []
+            "short": player.shortTracks[:10] if player.shortTracks else [],
+            "medium": player.medTracks[:10] if player.medTracks else [],
+            "long": player.longTracks[:10] if player.longTracks else []
         }
         
+        logger.debug(f"Returning formatted tracks for player {playerId}")    
+        return jsonify(formatted_tracks)
+        
+    except Exception as e:
+        logger.exception(f"Error fetching all tracks for player {playerId}: {str(e)}")
+        return jsonify({"error": str(e)}), 500
         # Helper function to format tracks
         def format_tracks_with_images(raw_tracks):
             result = []

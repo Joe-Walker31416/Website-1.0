@@ -152,7 +152,7 @@ const ComparisonPage = () => {
     const apiUrl = import.meta.env.VITE_API_URL || 'https://your-backend-url.onrender.com';
     window.location.href = `${apiUrl}/api/login/${playerId}`;
   };
-  
+
   // Check for status updates more frequently when waiting for users
   useInterval(() => {
     if (!userStatus.player1.saved || !userStatus.player2.saved) {
@@ -162,6 +162,14 @@ const ComparisonPage = () => {
 
   // Initial load
   useEffect(() => {
+    const token = localStorage.getItem('access_token');
+    console.log("Token available:", !!token);
+    if (token) {
+      // Only show the first few characters for security
+      console.log("Token preview:", token.substring(0, 10) + "...");
+    }
+    console.log("API URL:", config.API_URL);
+  
     const initPage = async () => {
       const status = await fetchUserStatus();
       

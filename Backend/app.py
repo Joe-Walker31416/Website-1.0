@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 # Use environment variable for CORS origin in production
-frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
-CORS(app, supports_credentials=True, origins=[frontend_url])
+frontend_url = os.environ.get('FRONTEND_URL', 'https://spotify-comparison-frontend.onrender.com')
+CORS(app, supports_credentials=True, origins=[frontend_url], allow_headers=["Authorization", "Content-Type"])
 
 # Load environment variables from .env file
 load_dotenv()

@@ -78,19 +78,24 @@ const TabGroup = () => {
       const token = localStorage.getItem('access_token');
       if (!token) return null;
       
-      // Using the renamed endpoint to avoid conflict
-      const response = await fetch(config.API_URL + '/api/all_user_tracks/${playerId}', {
+      console.log(`Fetching tracks for player ${playerId}`);
+      
+      // Using the fixed endpoint
+      const response = await fetch(`${config.API_URL}/api/all_user_tracks/${playerId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
+      
+      console.log(`Response status: ${response.status}`);
       
       if (response.ok) {
         const data = await response.json();
         console.log(`Player ${playerId} tracks:`, data);
         return data;
       } else {
-        console.error(`Failed to fetch tracks for player ${playerId}:`, response.status);
+        const errorText = await response.text();
+        console.error(`Failed to fetch tracks for player ${playerId}:`, response.status, errorText);
         return null;
       }
     } catch (error) {
@@ -98,6 +103,7 @@ const TabGroup = () => {
       return null;
     }
   }, []);
+  
 
   // Load user data and tracks
   const loadUserData = useCallback(async () => {
