@@ -74,6 +74,42 @@ const TabGroup = () => {
 
   // Fetch tracks for a specific player
   const fetchUserTracks = useCallback(async (playerId) => {
+    const fetchUserTracks = async (playerId) => {
+      try {
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+          console.error("No token found in localStorage");
+          return null;
+        }
+        
+        console.log(`Fetching tracks for player ${playerId}`);
+        console.log(`API URL: ${config.API_URL}/api/all_user_tracks/${playerId}`);
+        console.log(`Token: ${token.substring(0, 10)}...`);
+        
+        // Using the fixed endpoint
+        const response = await fetch(`${config.API_URL}/api/all_user_tracks/${playerId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        console.log(`Response status: ${response.status}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log(`Player ${playerId} tracks data:`, data);
+          return data;
+        } else {
+          const errorText = await response.text();
+          console.error(`Failed to fetch tracks for player ${playerId}:`, response.status, errorText);
+          return null;
+        }
+      } catch (error) {
+        console.error(`Error fetching tracks for player ${playerId}:`, error);
+        return null;
+      }
+    };
+    
     try {
       const token = localStorage.getItem('access_token');
       if (!token) return null;

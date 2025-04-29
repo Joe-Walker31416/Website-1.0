@@ -62,9 +62,67 @@ const ComparisonPage = () => {
     player2: { saved: false, name: null, picture: null }
   });
   const toast = useToast();
-
+  const testBackendConnection = async () => {
+    try {
+      // Test direct API access without token
+      console.log("Testing basic API connectivity...");
+      const response = await fetch(config.API_URL + '/api/user_status');
+      console.log("Basic connection test:", response.status);
+      
+      // Now try with token
+      const tokenResponse = await fetch(config.API_URL + '/api/user_status', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        }
+      });
+      console.log("Token connection test:", tokenResponse.status);
+      
+      // Try a simplified endpoint
+      const simpleResponse = await fetch(config.API_URL + '/login');
+      console.log("Simple endpoint test:", simpleResponse.status);
+    } catch (error) {
+      console.error("Backend connection test failed:", error);
+    }
+  };
+  useEffect(() => {
+    testBackendConnection();
+  }, []);
   // Memoize fetch functions so they can be used in useEffect dependencies
   const fetchUserStatus = useCallback(async () => {
+    const fetchUserStatus = async () => {
+      try {
+        console.log("Fetching user status...");
+        console.log("API URL:", config.API_URL + '/api/user_status');
+        
+        const token = localStorage.getItem('access_token');
+        console.log("Token exists:", !!token);
+        if (token) {
+          console.log("Token preview:", token.substring(0, 10) + "...");
+        }
+        
+        const response = await fetch(config.API_URL + '/api/user_status', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          }
+        });
+        
+        console.log("Response status:", response.status);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch user status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log("User status data:", data);
+        setUserStatus(data);
+        return data;
+      } catch (error) {
+        console.error('Error fetching user status:', error);
+        setError(error.message);
+        return null;
+      }
+    };
+    
     try {
       const response = await fetch(config.API_URL +'/api/user_status', {
         headers: {
