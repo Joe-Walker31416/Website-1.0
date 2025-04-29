@@ -15,11 +15,6 @@ import {
   Avatar,
   VStack,
   Button,
-  Tabs,
-  TabList,
-  Tab,
-  TabPanels,
-  TabPanel,
   Badge,
   AspectRatio
 } from '@chakra-ui/react';
@@ -39,6 +34,7 @@ const TabGroup = () => {
     medium: [],
     long: []
   });
+  const [activeTimeRange, setActiveTimeRange] = useState('short');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const toast = useToast();
@@ -75,193 +71,75 @@ const TabGroup = () => {
     }
   }, []);
 
-  // Fetch comparison data which contains both users' track information
-  const fetchComparisonData = useCallback(async () => {
+  // Fetch tracks for a specific player
+  const fetchUserTracks = useCallback(async (playerId) => {
     try {
       const token = localStorage.getItem('access_token');
-      
       if (!token) return null;
       
-      const response = await fetch("http://localhost:5000/api/comparison", {
+      // Using the renamed endpoint to avoid conflict
+      const response = await fetch(`http://localhost:5000/api/all_user_tracks/${playerId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
-        },
-        credentials: 'include'
+        }
       });
       
       if (response.ok) {
         const data = await response.json();
-        console.log("Comparison data:", data);
+        console.log(`Player ${playerId} tracks:`, data);
         return data;
       } else {
-        console.error("Failed to fetch comparison data:", response.status);
+        console.error(`Failed to fetch tracks for player ${playerId}:`, response.status);
         return null;
       }
     } catch (error) {
-      console.error("Error fetching comparison data:", error);
+      console.error(`Error fetching tracks for player ${playerId}:`, error);
       return null;
     }
   }, []);
 
-  // Use the data from api/user_status and /api/save_data endpoints
+  // Load user data and tracks
   const loadUserData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     
     try {
-      // Fetch user status first
+      // Fetch user status
       const status = await fetchUserStatus();
       if (!status) {
         setIsLoading(false);
         return;
       }
       
-      // If both users are logged in, try to fetch comparison data to get track information
-      if (status.player1.saved && status.player2.saved) {
-        const comparisonData = await fetchComparisonData();
-        
-        if (comparisonData) {
-          // Extract track data for both players from different time ranges
+      // Fetch tracks for both players
+      if (status.player1.saved) {
+        const player1Data = await fetchUserTracks(1);
+        if (player1Data) {
           setPlayer1Tracks({
-            short: comparisonData.short_term?.tracks?.player1 || [],
-            medium: comparisonData.medium_term?.tracks?.player1 || [],
-            long: comparisonData.long_term?.tracks?.player1 || []
+            short: player1Data.short || [],
+            medium: player1Data.medium || [],
+            long: player1Data.long || []
           });
-          
-          setPlayer2Tracks({
-            short: comparisonData.short_term?.tracks?.player2 || [],
-            medium: comparisonData.medium_term?.tracks?.player2 || [],
-            long: comparisonData.long_term?.tracks?.player2 || []
-          });
-        } else {
-          // If comparison data fetch fails, try direct API calls to get individual player data
-          await fetchDirectUserData();
         }
-      } else {
-        // If only one user is logged in, fetch their data directly
-        await fetchDirectUserData();
+      }
+      
+      if (status.player2.saved) {
+        const player2Data = await fetchUserTracks(2);
+        if (player2Data) {
+          setPlayer2Tracks({
+            short: player2Data.short || [],
+            medium: player2Data.medium || [],
+            long: player2Data.long || []
+          });
+        }
       }
     } catch (error) {
       console.error("Error loading user data:", error);
-      setError("Failed to load user data: " + error.message);
+      setError("Failed to load music data: " + error.message);
     } finally {
       setIsLoading(false);
     }
-  }, [fetchUserStatus, fetchComparisonData]);
-
-  // Direct fetch of user tracks from saved session data
-  const fetchDirectUserData = useCallback(async () => {
-    try {
-      const token = localStorage.getItem('access_token');
-      if (!token) return;
-      
-      // Try using the routes.py endpoint for each player
-      if (userData.player1.saved) {
-        // Player 1 data - short term
-        const shortResponse = await fetch("http://localhost:5000/api/tracks/1/short", {
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-        
-        // Player 1 data - medium term
-        const mediumResponse = await fetch("http://localhost:5000/api/tracks/1/medium", {
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-        
-        // Player 1 data - long term
-        const longResponse = await fetch("http://localhost:5000/api/tracks/1/long", {
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-        
-        if (shortResponse.ok && mediumResponse.ok && longResponse.ok) {
-          const shortData = await shortResponse.json();
-          const mediumData = await mediumResponse.json();
-          const longData = await longResponse.json();
-          
-          setPlayer1Tracks({
-            short: shortData || [],
-            medium: mediumData || [],
-            long: longData || []
-          });
-        } else {
-          // Fallback to test data if API endpoints aren't available
-          await fetchTestData(1);
-        }
-      }
-      
-      if (userData.player2.saved) {
-        // Similar requests for player 2
-        const shortResponse = await fetch("http://localhost:5000/api/tracks/2/short", {
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-        
-        const mediumResponse = await fetch("http://localhost:5000/api/tracks/2/medium", {
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-        
-        const longResponse = await fetch("http://localhost:5000/api/tracks/2/long", {
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-        
-        if (shortResponse.ok && mediumResponse.ok && longResponse.ok) {
-          const shortData = await shortResponse.json();
-          const mediumData = await mediumResponse.json();
-          const longData = await longResponse.json();
-          
-          setPlayer2Tracks({
-            short: shortData || [],
-            medium: mediumData || [],
-            long: longData || []
-          });
-        } else {
-          // Fallback to test data if API endpoints aren't available
-          await fetchTestData(2);
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching direct user data:", error);
-      // Fall back to test data
-      await fetchTestData(1);
-      await fetchTestData(2);
-    }
-  }, [userData]);
-
-  // Fallback to test data
-  const fetchTestData = useCallback(async (playerId) => {
-    try {
-      const response = await fetch("http://localhost:5000/api/testdata");
-      if (response.ok) {
-        const testData = await response.json();
-        // Convert test data format to match expected format
-        const formattedData = testData.map(item => {
-          if (Array.isArray(item)) {
-            return {
-              name: item[0],
-              artists_name: item[1] || "Unknown Artist",
-              image: item[2] || null
-            };
-          }
-          return item;
-        });
-        
-        // Use the test data as a fallback
-        if (playerId === 1) {
-          setPlayer1Tracks({
-            short: formattedData,
-            medium: formattedData,
-            long: formattedData
-          });
-        } else {
-          setPlayer2Tracks({
-            short: formattedData,
-            medium: formattedData,
-            long: formattedData
-          });
-        }
-      }
-    } catch (error) {
-      console.error(`Error fetching test data for Player ${playerId}:`, error);
-    }
-  }, []);
+  }, [fetchUserStatus, fetchUserTracks]);
 
   // Initial data loading
   useEffect(() => {
@@ -287,7 +165,7 @@ const TabGroup = () => {
   };
 
   // Component to display a single track
-  const TrackCard = ({ track, rank, isTopTrack = false }) => (
+  const TrackCard = ({ track, rank, isTopTrack = false, isPlayer2 = false }) => (
     <Card 
       height="100%" 
       boxShadow="md" 
@@ -319,7 +197,8 @@ const TabGroup = () => {
           position="absolute" 
           top="8px" 
           left="8px" 
-          colorScheme={rank === 1 ? "green" : "gray"} 
+          // Change badge color for player 2's top track to blue
+          colorScheme={(rank === 1 && isPlayer2) ? "blue" : (rank === 1) ? "green" : "gray"} 
           fontSize={isTopTrack ? "xl" : "md"}
           px="2"
           py="1"
@@ -351,15 +230,13 @@ const TabGroup = () => {
   );
 
   // Component to display tracks for a specific time period
-  const TrackTimeDisplay = ({ tracks, title }) => {
-    console.log("Track time display data:", title, tracks);
-    
+  const TrackTimeDisplay = ({ tracks, title, isPlayer2 = false }) => {
     // Ensure we have at least 10 tracks to display
     const displayTracks = tracks?.slice(0, 10) || [];
     
     // Pad with empty tracks if less than 10
     while (displayTracks.length < 10) {
-      displayTracks.push({ name: "No track data", artists_name: "", image: "" });
+      displayTracks.push({ name: "No track data", artists_name: "Unknown Artist", image: "" });
     }
     
     const topTrack = displayTracks[0];
@@ -372,7 +249,12 @@ const TabGroup = () => {
         {/* Top track highlighted */}
         <Box mb={6}>
           {topTrack && (
-            <TrackCard track={topTrack} rank={1} isTopTrack={true} />
+            <TrackCard 
+              track={topTrack} 
+              rank={1} 
+              isTopTrack={true} 
+              isPlayer2={isPlayer2} 
+            />
           )}
         </Box>
         
@@ -383,7 +265,8 @@ const TabGroup = () => {
               key={index} 
               track={track} 
               rank={index + 2} 
-              isTopTrack={false} 
+              isTopTrack={false}
+              isPlayer2={isPlayer2}
             />
           ))}
         </SimpleGrid>
@@ -429,6 +312,11 @@ const TabGroup = () => {
     </Card>
   );
 
+  // Simple time range selector using buttons
+  const handleTimeRangeChange = (range) => {
+    setActiveTimeRange(range);
+  };
+
   if (isLoading) {
     return (
       <Center h="300px">
@@ -446,6 +334,21 @@ const TabGroup = () => {
     );
   }
 
+  // Get appropriate title based on active time range
+  const getTitle = (name, range) => {
+    switch(range) {
+      case 'short':
+        return `${name}'s Recent Favorites`;
+      case 'medium':
+        return `${name}'s 6-Month Favorites`;
+      case 'long':
+        return `${name}'s All-Time Favorites`;
+      default:
+        return `${name}'s Top Tracks`;
+    }
+  };
+
+  // Direct display of music without tab interface
   return (
     <Flex width="100%" direction={{ base: "column", md: "row" }}>
       {/* Player 1 Section */}
@@ -453,34 +356,40 @@ const TabGroup = () => {
         <UserProfileCard userData={userData.player1} />
         
         {userData.player1.saved ? (
-          <Tabs variant="enclosed" colorScheme="green" isLazy>
-            <TabList>
-              <Tab>Short Term</Tab>
-              <Tab>Medium Term</Tab>
-              <Tab>Long Term</Tab>
-            </TabList>
+          <Box>
+            {/* Simple button selector instead of tabs */}
+            <Flex mb={4} justifyContent="center">
+              <Button 
+                mr={2} 
+                colorScheme={activeTimeRange === 'short' ? "green" : "gray"}
+                onClick={() => handleTimeRangeChange('short')}
+              >
+                Short Term
+              </Button>
+              <Button 
+                mr={2} 
+                colorScheme={activeTimeRange === 'medium' ? "green" : "gray"}
+                onClick={() => handleTimeRangeChange('medium')}
+              >
+                Medium Term
+              </Button>
+              <Button 
+                colorScheme={activeTimeRange === 'long' ? "green" : "gray"}
+                onClick={() => handleTimeRangeChange('long')}
+              >
+                Long Term
+              </Button>
+            </Flex>
             
-            <TabPanels>
-              <TabPanel>
-                <TrackTimeDisplay 
-                  tracks={player1Tracks.short} 
-                  title={`${userData.player1.name}'s Recent Favorites`} 
-                />
-              </TabPanel>
-              <TabPanel>
-                <TrackTimeDisplay 
-                  tracks={player1Tracks.medium} 
-                  title={`${userData.player1.name}'s 6-Month Favorites`} 
-                />
-              </TabPanel>
-              <TabPanel>
-                <TrackTimeDisplay 
-                  tracks={player1Tracks.long} 
-                  title={`${userData.player1.name}'s All-Time Favorites`} 
-                />
-              </TabPanel>
-            </TabPanels>
-          </Tabs>
+            {/* Display tracks based on selected time range */}
+            <Box mt={4}>
+              <TrackTimeDisplay 
+                tracks={player1Tracks[activeTimeRange]} 
+                title={getTitle(userData.player1.name, activeTimeRange)} 
+                isPlayer2={false}
+              />
+            </Box>
+          </Box>
         ) : (
           <Center p={8} borderWidth="1px" borderRadius="lg" bg="gray.50">
             <Text>Login to view your top tracks</Text>
@@ -500,34 +409,40 @@ const TabGroup = () => {
         <UserProfileCard userData={userData.player2} isPlayer2={true} />
         
         {userData.player2.saved ? (
-          <Tabs variant="enclosed" colorScheme="blue" isLazy>
-            <TabList>
-              <Tab>Short Term</Tab>
-              <Tab>Medium Term</Tab>
-              <Tab>Long Term</Tab>
-            </TabList>
+          <Box>
+            {/* Simple button selector instead of tabs */}
+            <Flex mb={4} justifyContent="center">
+              <Button 
+                mr={2} 
+                colorScheme={activeTimeRange === 'short' ? "blue" : "gray"}
+                onClick={() => handleTimeRangeChange('short')}
+              >
+                Short Term
+              </Button>
+              <Button 
+                mr={2} 
+                colorScheme={activeTimeRange === 'medium' ? "blue" : "gray"}
+                onClick={() => handleTimeRangeChange('medium')}
+              >
+                Medium Term
+              </Button>
+              <Button 
+                colorScheme={activeTimeRange === 'long' ? "blue" : "gray"}
+                onClick={() => handleTimeRangeChange('long')}
+              >
+                Long Term
+              </Button>
+            </Flex>
             
-            <TabPanels>
-              <TabPanel>
-                <TrackTimeDisplay 
-                  tracks={player2Tracks.short} 
-                  title={`${userData.player2.name}'s Recent Favorites`} 
-                />
-              </TabPanel>
-              <TabPanel>
-                <TrackTimeDisplay 
-                  tracks={player2Tracks.medium} 
-                  title={`${userData.player2.name}'s 6-Month Favorites`} 
-                />
-              </TabPanel>
-              <TabPanel>
-                <TrackTimeDisplay 
-                  tracks={player2Tracks.long} 
-                  title={`${userData.player2.name}'s All-Time Favorites`} 
-                />
-              </TabPanel>
-            </TabPanels>
-          </Tabs>
+            {/* Display tracks based on selected time range */}
+            <Box mt={4}>
+              <TrackTimeDisplay 
+                tracks={player2Tracks[activeTimeRange]} 
+                title={getTitle(userData.player2.name, activeTimeRange)} 
+                isPlayer2={true}
+              />
+            </Box>
+          </Box>
         ) : (
           <Center p={8} borderWidth="1px" borderRadius="lg" bg="gray.50">
             <Text>Login Player 2 to view their top tracks</Text>

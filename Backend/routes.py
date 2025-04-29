@@ -787,3 +787,193 @@ def get_comparison_with_tracks():
     except Exception as e:
         logger.exception(f"Error in comparison with tracks: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+# Add these routes to your routes.py file to display users' top tracks
+@app.route("/api/user_top_tracks/<int:player_id>/<string:time_range>")
+def get_user_top_tracks(player_id, time_range):
+    """Get top 10 tracks for a specific player and time range"""
+    if player_id not in [1, 2]:
+        return jsonify({"error": "Invalid player ID"}), 400
+        
+    if time_range not in ["short", "medium", "long"]:
+        return jsonify({"error": "Invalid time range"}), 400
+    
+    try:
+        # Check if token exists in player_tokens dictionary
+        if player_id in player_tokens and player_tokens[player_id]:
+            auth_token = player_tokens[player_id]
+        # Or fallback to session token if available
+        elif 'access_token' in session:
+            auth_token = session['access_token']
+        else:
+            logger.error(f"No access token available for player {player_id}")
+            return jsonify({"error": "Authentication required"}), 401
+            
+        # Access the player data from our global variables
+        player = player1 if player_id == 1 else player2
+        
+        if not player.saved:
+            return jsonify({"error": f"Player {player_id} not logged in"}), 400
+        
+        # Prepare tracks with image URLs
+        tracks = []
+        
+        # Get the appropriate tracks based on time range
+        raw_tracks = None
+        if time_range == "short":
+            raw_tracks = player.shortTracks
+        elif time_range == "medium":
+            raw_tracks = player.medTracks
+        elif time_range == "long":
+            raw_tracks = player.longTracks
+            
+        # Ensure we have track data
+        if not raw_tracks:
+            logger.error(f"No {time_range} tracks found for player {player_id}")
+            return jsonify([])
+            
+        # Format tracks to include all necessary info including images
+        for track in raw_tracks[:10]:  # Limit to top 10
+            # Get album image using Spotify API
+            try:
+                headers = {
+                    'Authorization': f"Bearer {auth_token}"
+                }
+                
+                # Get track details to access album cover art
+                track_response = requests.get(f"{API_BASE_URL}tracks/{track['id']}", headers=headers)
+                
+                if track_response.status_code == 200:
+                    track_data = track_response.json()
+                    # Extract image URL from album
+                    image_url = None
+                    if 'album' in track_data and 'images' in track_data['album'] and len(track_data['album']['images']) > 0:
+                        image_url = track_data['album']['images'][0]['url']
+                        
+                    # Create formatted track object
+                    formatted_track = {
+                        'name': track['name'],
+                        'id': track['id'],
+                        'artists_name': track['artists_name'],
+                        'artists_id': track['artists_id'],
+                        'image': image_url
+                    }
+                    
+                    tracks.append(formatted_track)
+                else:
+                    logger.error(f"Failed to get track details: {track_response.status_code}")
+                    # Still add track without image
+                    tracks.append({
+                        'name': track['name'],
+                        'id': track['id'],
+                        'artists_name': track['artists_name'],
+                        'artists_id': track['artists_id'],
+                        'image': None
+                    })
+            except Exception as e:
+                logger.error(f"Error processing track {track['name']}: {str(e)}")
+                # Still add track without image on error
+                tracks.append({
+                    'name': track['name'],
+                    'id': track['id'],
+                    'artists_name': track['artists_name'],
+                    'artists_id': track['artists_id'],
+                    'image': None
+                })
+                
+        logger.info(f"Returning {len(tracks)} tracks for player {player_id}, time range {time_range}")
+        return jsonify(tracks)
+            
+    except Exception as e:
+        logger.error(f"Error fetching tracks for player {player_id}: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/all_user_tracks/<int:player_id>")
+def get_all_user_tracks_data(player_id):
+    """Get all time ranges of tracks for a user at once"""
+    if player_id not in [1, 2]:
+        return jsonify({"error": "Invalid player ID"}), 400
+    
+    try:
+        # Get token from player_tokens or session
+        token = None
+        if player_id in player_tokens and player_tokens[player_id]:
+            token = player_tokens[player_id]
+        elif 'access_token' in session:
+            token = session['access_token']
+            
+        if not token:
+            return jsonify({"error": "Authentication required"}), 401
+            
+        # Access player data
+        player = player1 if player_id == 1 else player2
+        
+        if not player.saved:
+            return jsonify({"error": f"Player {player_id} not logged in"}), 400
+            
+        # Format and include album images for all tracks
+        formatted_tracks = {
+            "short": [],
+            "medium": [],
+            "long": []
+        }
+        
+        # Helper function to format tracks
+        def format_tracks_with_images(raw_tracks):
+            result = []
+            for track in raw_tracks[:10]:  # Limit to top 10
+                try:
+                    headers = {'Authorization': f"Bearer {token}"}
+                    track_response = requests.get(f"{API_BASE_URL}tracks/{track['id']}", headers=headers)
+                    
+                    if track_response.status_code == 200:
+                        track_data = track_response.json()
+                        # Extract image URL
+                        image_url = None
+                        if 'album' in track_data and 'images' in track_data['album'] and len(track_data['album']['images']) > 0:
+                            image_url = track_data['album']['images'][0]['url']
+                            
+                        # Add formatted track
+                        result.append({
+                            'name': track['name'],
+                            'id': track['id'],
+                            'artists_name': track['artists_name'],
+                            'artists_id': track['artists_id'],
+                            'image': image_url
+                        })
+                    else:
+                        # Add track without image
+                        result.append({
+                            'name': track['name'],
+                            'id': track['id'],
+                            'artists_name': track['artists_name'],
+                            'artists_id': track['artists_id'],
+                            'image': None
+                        })
+                except Exception as e:
+                    logger.error(f"Error processing track {track['name']}: {str(e)}")
+                    # Still add track on error
+                    result.append({
+                        'name': track['name'],
+                        'id': track['id'],
+                        'artists_name': track['artists_name'],
+                        'artists_id': track['artists_id'],
+                        'image': None
+                    })
+            return result
+        
+        # Format tracks for each time range
+        if player.shortTracks:
+            formatted_tracks["short"] = format_tracks_with_images(player.shortTracks)
+            
+        if player.medTracks:
+            formatted_tracks["medium"] = format_tracks_with_images(player.medTracks)
+            
+        if player.longTracks:
+            formatted_tracks["long"] = format_tracks_with_images(player.longTracks)
+            
+        return jsonify(formatted_tracks)
+        
+    except Exception as e:
+        logger.error(f"Error fetching all tracks for player {player_id}: {str(e)}")
+        return jsonify({"error": str(e)}), 500

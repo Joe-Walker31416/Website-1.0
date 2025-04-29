@@ -1,21 +1,11 @@
 import { 
-  Flex, 
-  Tabs, 
-  Tab, 
-  TabList, 
-  TabPanel, 
-  TabPanels, 
-  AvatarGroup, 
-  Avatar, 
-  Stack, 
-  Text, 
   Box, 
   Spinner,
   Center,
   useToast,
-  Button,
+  Container,
   Heading,
-  Container
+  Text
 } from '@chakra-ui/react';
 import React, { useEffect, useState, useCallback } from 'react';
 import TabGroup from './TabGroup';
@@ -110,10 +100,6 @@ const Sections = () => {
     };
   }, [isAuthenticated, userData, fetchUserData]);
 
-  const handleLogin = () => {
-    window.location.href = 'http://localhost:5000/login';
-  };
-
   return (
     <Container maxW="1200px" py={6}>
       {error && (
@@ -123,93 +109,27 @@ const Sections = () => {
         </Box>
       )}
       
-      <Tabs variant="enclosed" size="lg" colorScheme="green" isLazy>
-        <TabList>
-          <Tab>Music Comparison</Tab>
-          <Tab>My Music</Tab>
-        </TabList>
+      {/* Display just the My Music content without tabs */}
+      <Box mt={4}>
+        <Heading size="lg" mb={6} textAlign="center">
+          {userData?.player1?.name ? `${userData.player1.name}'s Top Music` : 'Your Top Music'}
+        </Heading>
         
-        <TabPanels>
-          {/* Music Comparison Tab */}
-          <TabPanel>
-            <Box textAlign="center" py={10}>
-              <Heading size="xl" mb={6}>Compare Your Music Taste</Heading>
-              <AvatarGroup size="xl" max={2} mb={6} spacing="-1rem">
-                {userData.player1.saved && (
-                  <Avatar 
-                    name={userData.player1.name} 
-                    src={userData.player1.picture} 
-                    bg="green.500"
-                    boxSize="100px"
-                    border="3px solid white"
-                  />
-                )}
-                {userData.player2.saved ? (
-                  <Avatar 
-                    name={userData.player2.name} 
-                    src={userData.player2.picture} 
-                    bg="blue.500"
-                    boxSize="100px"
-                    border="3px solid white"
-                  />
-                ) : (
-                  <Avatar 
-                    name="Friend" 
-                    src="https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png" 
-                    bg="gray.400"
-                    boxSize="100px"
-                    border="3px solid white"
-                  />
-                )}
-              </AvatarGroup>
-              
-              <Text fontSize="lg" mb={6}>
-                {userData.player1.saved && userData.player2.saved ? (
-                  `Both users are logged in! Compare ${userData.player1.name} and ${userData.player2.name}'s music tastes.`
-                ) : isAuthenticated ? (
-                  "You're logged in! Now invite a friend to compare your music tastes."
-                ) : (
-                  "Login with Spotify to compare your music taste with friends."
-                )}
-              </Text>
-              
-              {isAuthenticated ? (
-                <Button 
-                  as="a" 
-                  href="/compare" 
-                  colorScheme="green" 
-                  size="lg"
-                >
-                  Go to Comparison Page
-                </Button>
-              ) : (
-                <LoginButton />
-              )}
-            </Box>
-          </TabPanel>
-          
-          {/* My Music Tab */}
-          <TabPanel bg="gray.50" borderRadius="md">
-            {isLoading ? (
-              <Center py={10}>
-                <Spinner size="xl" color="green.500" />
-              </Center>
-            ) : isAuthenticated ? (
-              <Box>
-                <Heading size="md" mb={4} textAlign="center">
-                  {userData?.player1?.name ? `${userData.player1.name}'s Top Music` : 'Your Top Music'}
-                </Heading>
-                <TabGroup />
-              </Box>
-            ) : (
-              <Center py={10} flexDirection="column">
-                <Text fontSize="lg" mb={4}>Please login to view your music</Text>
-                <LoginButton />
-              </Center>
-            )}
-          </TabPanel>
-        </TabPanels>
-      </Tabs>
+        {isLoading ? (
+          <Center py={10}>
+            <Spinner size="xl" color="green.500" />
+          </Center>
+        ) : isAuthenticated ? (
+          <Box>
+            <TabGroup />
+          </Box>
+        ) : (
+          <Center py={10} flexDirection="column">
+            <Text fontSize="lg" mb={4}>Please login to view your music</Text>
+            <LoginButton />
+          </Center>
+        )}
+      </Box>
     </Container>
   );
 };
