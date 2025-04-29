@@ -4,8 +4,6 @@ import {
   Text,  
   Card, 
   CardBody,
-  CardHeader,
-  CardFooter, 
   SimpleGrid, 
   Box, 
   Divider,
@@ -16,7 +14,6 @@ import {
   Heading,
   Avatar,
   VStack,
-  HStack,
   Button,
   Tabs,
   TabList,
@@ -24,8 +21,6 @@ import {
   TabPanels,
   TabPanel,
   Badge,
-  Grid,
-  GridItem,
   AspectRatio
 } from '@chakra-ui/react';
 
@@ -67,6 +62,7 @@ const TabGroup = () => {
       
       if (response.ok) {
         const result = await response.json();
+        console.log("User status data:", result);
         setUserData(result);
         return result;
       } else {
@@ -79,14 +75,14 @@ const TabGroup = () => {
     }
   }, []);
 
-  // Fetch tracks for a specific player and time range
-  const fetchPlayerTracks = useCallback(async (playerId, timeRange) => {
+  // Fetch comparison data which contains both users' track information
+  const fetchComparisonData = useCallback(async () => {
     try {
       const token = localStorage.getItem('access_token');
       
-      if (!token) return [];
+      if (!token) return null;
       
-      const response = await fetch(`http://localhost:5000/api/player/${playerId}/tracks?time_range=${timeRange}`, {
+      const response = await fetch("http://localhost:5000/api/comparison", {
         headers: {
           'Authorization': `Bearer ${token}`
         },
@@ -95,89 +91,195 @@ const TabGroup = () => {
       
       if (response.ok) {
         const data = await response.json();
-        return data.tracks || [];
+        console.log("Comparison data:", data);
+        return data;
       } else {
-        // If API fails, try to use test data
-        const testResponse = await fetch("http://localhost:5000/api/testdata");
-        if (testResponse.ok) {
-          const testData = await testResponse.json();
-          // Convert test data format to match expected format
-          return testData.map(item => {
-            if (Array.isArray(item)) {
-              return {
-                name: item[0],
-                artists_name: item[1] || "Unknown Artist",
-                image: item[2] || "https://via.placeholder.com/300"
-              };
-            }
-            return item;
-          });
-        }
-        console.error(`Failed to fetch tracks for Player ${playerId}`);
-        return [];
+        console.error("Failed to fetch comparison data:", response.status);
+        return null;
       }
     } catch (error) {
-      console.error(`Error fetching tracks for Player ${playerId}:`, error);
-      return [];
+      console.error("Error fetching comparison data:", error);
+      return null;
     }
   }, []);
 
-  // Load all track data
-  const loadAllTrackData = useCallback(async () => {
+  // Use the data from api/user_status and /api/save_data endpoints
+  const loadUserData = useCallback(async () => {
     setIsLoading(true);
+    setError(null);
     
-    const status = await fetchUserStatus();
-    if (!status) {
+    try {
+      // Fetch user status first
+      const status = await fetchUserStatus();
+      if (!status) {
+        setIsLoading(false);
+        return;
+      }
+      
+      // If both users are logged in, try to fetch comparison data to get track information
+      if (status.player1.saved && status.player2.saved) {
+        const comparisonData = await fetchComparisonData();
+        
+        if (comparisonData) {
+          // Extract track data for both players from different time ranges
+          setPlayer1Tracks({
+            short: comparisonData.short_term?.tracks?.player1 || [],
+            medium: comparisonData.medium_term?.tracks?.player1 || [],
+            long: comparisonData.long_term?.tracks?.player1 || []
+          });
+          
+          setPlayer2Tracks({
+            short: comparisonData.short_term?.tracks?.player2 || [],
+            medium: comparisonData.medium_term?.tracks?.player2 || [],
+            long: comparisonData.long_term?.tracks?.player2 || []
+          });
+        } else {
+          // If comparison data fetch fails, try direct API calls to get individual player data
+          await fetchDirectUserData();
+        }
+      } else {
+        // If only one user is logged in, fetch their data directly
+        await fetchDirectUserData();
+      }
+    } catch (error) {
+      console.error("Error loading user data:", error);
+      setError("Failed to load user data: " + error.message);
+    } finally {
       setIsLoading(false);
-      return;
     }
-    
-    // Load tracks for player 1 if logged in
-    if (status.player1.saved) {
-      const shortTracks = await fetchPlayerTracks(1, 'short');
-      const mediumTracks = await fetchPlayerTracks(1, 'medium');
-      const longTracks = await fetchPlayerTracks(1, 'long');
+  }, [fetchUserStatus, fetchComparisonData]);
+
+  // Direct fetch of user tracks from saved session data
+  const fetchDirectUserData = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
       
-      setPlayer1Tracks({
-        short: shortTracks,
-        medium: mediumTracks,
-        long: longTracks
-      });
-    }
-    
-    // Load tracks for player 2 if logged in
-    if (status.player2.saved) {
-      const shortTracks = await fetchPlayerTracks(2, 'short');
-      const mediumTracks = await fetchPlayerTracks(2, 'medium');
-      const longTracks = await fetchPlayerTracks(2, 'long');
+      // Try using the routes.py endpoint for each player
+      if (userData.player1.saved) {
+        // Player 1 data - short term
+        const shortResponse = await fetch("http://localhost:5000/api/tracks/1/short", {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        
+        // Player 1 data - medium term
+        const mediumResponse = await fetch("http://localhost:5000/api/tracks/1/medium", {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        
+        // Player 1 data - long term
+        const longResponse = await fetch("http://localhost:5000/api/tracks/1/long", {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        
+        if (shortResponse.ok && mediumResponse.ok && longResponse.ok) {
+          const shortData = await shortResponse.json();
+          const mediumData = await mediumResponse.json();
+          const longData = await longResponse.json();
+          
+          setPlayer1Tracks({
+            short: shortData || [],
+            medium: mediumData || [],
+            long: longData || []
+          });
+        } else {
+          // Fallback to test data if API endpoints aren't available
+          await fetchTestData(1);
+        }
+      }
       
-      setPlayer2Tracks({
-        short: shortTracks,
-        medium: mediumTracks,
-        long: longTracks
-      });
+      if (userData.player2.saved) {
+        // Similar requests for player 2
+        const shortResponse = await fetch("http://localhost:5000/api/tracks/2/short", {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        
+        const mediumResponse = await fetch("http://localhost:5000/api/tracks/2/medium", {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        
+        const longResponse = await fetch("http://localhost:5000/api/tracks/2/long", {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        
+        if (shortResponse.ok && mediumResponse.ok && longResponse.ok) {
+          const shortData = await shortResponse.json();
+          const mediumData = await mediumResponse.json();
+          const longData = await longResponse.json();
+          
+          setPlayer2Tracks({
+            short: shortData || [],
+            medium: mediumData || [],
+            long: longData || []
+          });
+        } else {
+          // Fallback to test data if API endpoints aren't available
+          await fetchTestData(2);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching direct user data:", error);
+      // Fall back to test data
+      await fetchTestData(1);
+      await fetchTestData(2);
     }
-    
-    setIsLoading(false);
-  }, [fetchUserStatus, fetchPlayerTracks]);
+  }, [userData]);
+
+  // Fallback to test data
+  const fetchTestData = useCallback(async (playerId) => {
+    try {
+      const response = await fetch("http://localhost:5000/api/testdata");
+      if (response.ok) {
+        const testData = await response.json();
+        // Convert test data format to match expected format
+        const formattedData = testData.map(item => {
+          if (Array.isArray(item)) {
+            return {
+              name: item[0],
+              artists_name: item[1] || "Unknown Artist",
+              image: item[2] || null
+            };
+          }
+          return item;
+        });
+        
+        // Use the test data as a fallback
+        if (playerId === 1) {
+          setPlayer1Tracks({
+            short: formattedData,
+            medium: formattedData,
+            long: formattedData
+          });
+        } else {
+          setPlayer2Tracks({
+            short: formattedData,
+            medium: formattedData,
+            long: formattedData
+          });
+        }
+      }
+    } catch (error) {
+      console.error(`Error fetching test data for Player ${playerId}:`, error);
+    }
+  }, []);
 
   // Initial data loading
   useEffect(() => {
-    loadAllTrackData();
-  }, [loadAllTrackData]);
+    loadUserData();
+  }, [loadUserData]);
 
   // Listen for auth changes
   useEffect(() => {
     const handleStorageChange = () => {
       const token = localStorage.getItem('access_token');
       if (token) {
-        loadAllTrackData();
+        loadUserData();
       }
     };
     
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, [loadAllTrackData]);
+  }, [loadUserData]);
 
   // Handle login for player 2
   const handleLoginPlayer2 = () => {
@@ -187,7 +289,7 @@ const TabGroup = () => {
   // Component to display a single track
   const TrackCard = ({ track, rank, isTopTrack = false }) => (
     <Card 
-      height={isTopTrack ? "100%" : "100%"} 
+      height="100%" 
       boxShadow="md" 
       borderRadius="lg" 
       overflow="hidden"
@@ -196,12 +298,22 @@ const TabGroup = () => {
     >
       <Box position="relative">
         <AspectRatio ratio={1}>
-          <Image 
-            src={track.image} 
-            alt={track.name} 
-            objectFit="cover"
-            fallbackSrc="https://via.placeholder.com/300?text=No+Image" 
-          />
+          {track.image ? (
+            <Image 
+              src={track.image} 
+              alt={track.name || "Track image"} 
+              objectFit="cover"
+              fallback={
+                <Box bg="gray.200" display="flex" alignItems="center" justifyContent="center">
+                  <Text fontSize="sm" color="gray.600">{track.name || "Unknown Track"}</Text>
+                </Box>
+              }
+            />
+          ) : (
+            <Box bg="gray.200" display="flex" alignItems="center" justifyContent="center">
+              <Text fontSize="sm" color="gray.600">{track.name || "Unknown Track"}</Text>
+            </Box>
+          )}
         </AspectRatio>
         <Badge 
           position="absolute" 
@@ -224,14 +336,14 @@ const TabGroup = () => {
             fontSize={isTopTrack ? "xl" : "md"} 
             noOfLines={1}
           >
-            {track.name}
+            {track.name || "Unknown Track"}
           </Text>
           <Text 
             color="gray.600" 
             fontSize={isTopTrack ? "md" : "sm"} 
             noOfLines={1}
           >
-            {track.artists_name}
+            {track.artists_name || "Unknown Artist"}
           </Text>
         </VStack>
       </CardBody>
@@ -240,8 +352,11 @@ const TabGroup = () => {
 
   // Component to display tracks for a specific time period
   const TrackTimeDisplay = ({ tracks, title }) => {
+    console.log("Track time display data:", title, tracks);
+    
     // Ensure we have at least 10 tracks to display
-    const displayTracks = tracks.slice(0, 10);
+    const displayTracks = tracks?.slice(0, 10) || [];
+    
     // Pad with empty tracks if less than 10
     while (displayTracks.length < 10) {
       displayTracks.push({ name: "No track data", artists_name: "", image: "" });
@@ -309,8 +424,8 @@ const TabGroup = () => {
               ) : null}
             </VStack>
           )}
-        </CardBody>
-      </Card>
+        </Center>
+      </CardBody>
     </Card>
   );
 

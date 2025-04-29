@@ -685,3 +685,105 @@ def get_comparison():
     except Exception as e:
         logger.exception(f"Error in comparison: {str(e)}")
         return jsonify({"error": str(e)}), 500
+    
+@app.route("/api/tracks/<int:player_id>/<string:time_range>")
+def get_player_tracks(player_id, time_range):
+    """Get tracks for a specific player and time range"""
+    if not player_id in [1, 2]:
+        return jsonify({"error": "Invalid player ID"}), 400
+        
+    if not time_range in ["short", "medium", "long"]:
+        return jsonify({"error": "Invalid time range"}), 400
+    
+    try:
+        # Check authentication
+        token = get_token_from_header()
+        if not token:
+            return jsonify({"error": "Authentication required"}), 401
+            
+        # Access the player data from our global variables
+        player = player1 if player_id == 1 else player2
+        
+        # Return the appropriate tracks based on time range
+        if time_range == "short":
+            return jsonify(player.shortTracks)
+        elif time_range == "medium":
+            return jsonify(player.medTracks)
+        elif time_range == "long":
+            return jsonify(player.longTracks)
+            
+    except Exception as e:
+        logger.error(f"Error fetching tracks for player {player_id}: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+# Modify the comparison endpoint to include full track data
+@app.route("/api/comparison_with_tracks")
+def get_comparison_with_tracks():
+    """Get comparison results with full track data for both users"""
+    try:
+        if not player1.saved or not player2.saved:
+            logger.error("Attempted comparison but not all users are logged in")
+            return jsonify({"error": "Both users need to be logged in"}), 400
+            
+        # Use an available token for API calls
+        if player_tokens[1]:
+            auth_token = player_tokens[1]
+        elif player_tokens[2]:
+            auth_token = player_tokens[2]
+        elif 'access_token' in session:
+            auth_token = session['access_token']
+        else:
+            logger.error("No access token available for comparison")
+            return jsonify({"error": "Authentication required"}), 401
+            
+        headers = {
+            'Authorization': f"Bearer {auth_token}"
+        }
+        
+        # Compute comparisons for all time ranges
+        logger.debug("Computing comparisons with track data")
+        
+        resultsSHORT = produceV2results(player1.topGenres, player1.shortTracks, player2.topGenres, player2.shortTracks, headers)
+        resultsMED = produceV2results(player1.topGenres, player1.medTracks, player2.topGenres, player2.medTracks, headers)
+        resultsLONG = produceV2results(player1.topGenres, player1.longTracks, player2.topGenres, player2.longTracks, headers)
+        
+        # Return results with full track data
+        return jsonify({
+            "success": True,
+            "players": {
+                "player1": {
+                    "name": player1.name,
+                    "picture": player1.picture,
+                },
+                "player2": {
+                    "name": player2.name,
+                    "picture": player2.picture,
+                }
+            },
+            "short_term": {
+                **resultsSHORT,
+                "tracks": {
+                    "player1": player1.shortTracks,
+                    "player2": player2.shortTracks
+                }
+            },
+            "medium_term": {
+                **resultsMED,
+                "tracks": {
+                    "player1": player1.medTracks,
+                    "player2": player2.medTracks
+                }
+            },
+            "long_term": {
+                **resultsLONG,
+                "tracks": {
+                    "player1": player1.longTracks,
+                    "player2": player2.longTracks
+                }
+            },
+            "sharedGenres": round(pointsLog(simGenres(player1.topGenres, player2.topGenres)), 2)
+        })
+    
+    except Exception as e:
+        logger.exception(f"Error in comparison with tracks: {str(e)}")
+        return jsonify({"error": str(e)}), 500
