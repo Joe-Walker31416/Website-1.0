@@ -59,6 +59,24 @@ function App() {
     );
   }
 
+  useEffect(() => {
+    // Extract token from URL if present
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('access_token');
+    
+    if (token) {
+      // Save token to localStorage
+      localStorage.setItem('access_token', token);
+      
+      // Clean up URL (optional but recommended)
+      window.history.replaceState({}, document.title, '/');
+      
+      // Force a token refresh in your app state
+      window.dispatchEvent(new Event('storage'));
+      
+      console.log("Token captured from URL and saved");
+    }
+  }, []);
   return (
     <Router>
       {isAuthenticated && <Navbar setIsAuthenticated={setIsAuthenticated} />}
