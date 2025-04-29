@@ -178,7 +178,7 @@ def index(filename):
     return send_from_directory(dist_folder, filename)
 
 # Import all routes
-import routes
+from . import routes
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
