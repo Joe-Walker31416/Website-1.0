@@ -30,6 +30,9 @@ app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_USE_SIGNER'] = True
 Session(app)
 
+
+from . import routes
+
 # Retrieve environment variables
 client_id = os.environ.get('CLIENT_ID')
 client_secret = os.environ.get('CLIENT_SECRET')
@@ -178,7 +181,6 @@ def index(filename):
     return send_from_directory(dist_folder, filename)
 
 # Import all routes
-from . import routes
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

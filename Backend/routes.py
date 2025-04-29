@@ -1,5 +1,4 @@
 from flask import jsonify, request, session, redirect
-from app import app
 import math
 import numpy as np
 from collections import Counter
@@ -13,6 +12,7 @@ from urllib.parse import urlencode
 from flask import jsonify, request, session, redirect
 import logging
 
+from .app import app
 # Configure better logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
