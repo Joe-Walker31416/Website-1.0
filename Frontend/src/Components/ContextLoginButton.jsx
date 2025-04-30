@@ -36,6 +36,8 @@ const ContextLoginButton = ({
             // Default to 'compare' if path is empty or just "/"
             if (!returnPath || returnPath === '/') {
                 returnPath = 'compare';
+            } else {
+                returnPath='sections';
             }
         }
         
