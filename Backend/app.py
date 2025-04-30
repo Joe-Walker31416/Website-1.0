@@ -126,10 +126,10 @@ def callback():
     player_id = session.get('current_player', 1)
     
     # Redirect to the frontend with token
-    return redirect(f"{frontend_url}?access_token={token}&player_id={player_id}")
+    #return redirect(f"{frontend_url}?access_token={token}&player_id={player_id}")
 
     # # Save user data and redirect to frontend
-    # return redirect('/api/save_user_data')
+    return redirect('/api/save_user_data')
 
 @app.route('/refresh-token')
 def refresh_token():
