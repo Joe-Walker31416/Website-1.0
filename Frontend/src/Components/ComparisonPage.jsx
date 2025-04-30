@@ -455,9 +455,9 @@ const testUserStatus = async () => {
                       <Image 
                         boxSize="80px"
                         borderRadius="md"
-                        src={comparison.short_term.topSong.image || "https://via.placeholder.com/80"}
+                        src={comparison.short_term.topSong.image || "https://placehold.co/800/white/black?text=No\nCommon\nSong&font=roboto"}
                         alt={comparison.short_term.topSong.name}
-                        fallbackSrc="https://via.placeholder.com/80"
+                        fallbackSrc="https://placehold.co/800/white/black?text=No\nCommon\nSong&font=roboto"
                       />
                       <Box>
                         <Text fontWeight="bold">{comparison.short_term.topSong.name}</Text>
@@ -488,9 +488,9 @@ const testUserStatus = async () => {
                       <Image 
                         boxSize="80px"
                         borderRadius="md"
-                        src={comparison.medium_term.topSong.image || "https://via.placeholder.com/80"}
+                        src={comparison.medium_term.topSong.image || "https://placehold.co/800/white/black?text=No\nCommon\nSong&font=roboto"}
                         alt={comparison.medium_term.topSong.name}
-                        fallbackSrc="https://via.placeholder.com/80"
+                        fallbackSrc="https://placehold.co/800/white/black?text=No\nCommon\nSong&font=roboto"
                       />
                       <Box>
                         <Text fontWeight="bold">{comparison.medium_term.topSong.name}</Text>
@@ -521,9 +521,9 @@ const testUserStatus = async () => {
                       <Image 
                         boxSize="80px"
                         borderRadius="md"
-                        src={comparison.long_term.topSong.image || "https://via.placeholder.com/80"}
+                        src={comparison.long_term.topSong.image || "https://placehold.co/800/white/black?text=No\nCommon\nSong&font=roboto"}
                         alt={comparison.long_term.topSong.name}
-                        fallbackSrc="https://via.placeholder.com/80"
+                        fallbackSrc="https://placehold.co/800/white/black?text=No\nCommon\nSong&font=roboto"
                       />
                       <Box>
                         <Text fontWeight="bold">{comparison.long_term.topSong.name}</Text>
