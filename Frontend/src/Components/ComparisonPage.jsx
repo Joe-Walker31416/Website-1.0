@@ -284,7 +284,7 @@ const testUserStatus = async () => {
                 bg="gray.200"
                 icon={<Text fontSize="4xl" color="gray.400">?</Text>}
               />
-              <Heading size="md" mb={2}>User{playerId}</Heading>
+              <Heading size="md" mb={2}>User {playerId}</Heading>
               <Badge colorScheme="red" mb={4} fontSize="0.8em" px={2} py={1}>NOT CONNECTED</Badge>
               <Button 
                 colorScheme="green" 
