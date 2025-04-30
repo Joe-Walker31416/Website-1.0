@@ -51,7 +51,7 @@ const ContextLoginButton = ({
             transition="all 0.2s"
             {...props}
         >
-            {playerId === 2 ? "Login User 2 with Spotify" : "Login with Spotify"}
+            {playerId === 2 ? "Login with Spotify" : "Login with Spotify"}
         </Button>
     );
 };
