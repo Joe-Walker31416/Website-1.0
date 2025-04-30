@@ -22,8 +22,22 @@ const ContextLoginButton = ({
     const location = useLocation();
     
     const handleLogin = () => {
-        // Determine redirect path - use provided path, current path, or default to 'compare'
-        const returnPath = redirectPath || location.pathname.replace('/', '') || 'compare';
+        // Explicitly use the provided redirectPath if available
+        let returnPath;
+        
+        if (redirectPath && redirectPath.length > 0) {
+            // Use the explicitly provided path
+            returnPath = redirectPath;
+        } else {
+            // Extract the path from current location, remove leading slash
+            const currentPath = location.pathname;
+            returnPath = currentPath.startsWith('/') ? currentPath.substring(1) : currentPath;
+            
+            // Default to 'compare' if path is empty or just "/"
+            if (!returnPath || returnPath === '/') {
+                returnPath = 'compare';
+            }
+        }
         
         // Store the path to return to after login
         sessionStorage.setItem('redirect_page', returnPath);
@@ -51,7 +65,7 @@ const ContextLoginButton = ({
             transition="all 0.2s"
             {...props}
         >
-            {playerId === 2 ? "Login with Spotify" : "Login with Spotify"}
+            {playerId === 2 ? "Login User 2 with Spotify" : "Login with Spotify"}
         </Button>
     );
 };
