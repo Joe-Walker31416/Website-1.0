@@ -2,7 +2,16 @@ import config from '../config';
 import { Button, useToast } from '@chakra-ui/react';
 import React from 'react';
 
-const LoginButton = () => {
+
+const sizeMap = {
+    sm: "sm",
+    md: "md",
+    lg: "lg",
+    xl: { fontSize: "xl", px: 8, py: 6 }, // custom size example
+  };
+
+const LoginButton = ({size = "md", ...props}) => {
+    const sizeProps = sizeMap[size] || sizeMap["md"];
     const toast = useToast();
 
     const handleLogin = () => {
@@ -23,7 +32,7 @@ const LoginButton = () => {
         <Button 
             onClick={handleLogin} 
             colorScheme="green" 
-            size="lg"
+            size={sizeProps}
             _hover={{ transform: 'translateY(-2px)', boxShadow: 'lg' }}
             _active={{ transform: 'translateY(0)', boxShadow: 'md' }}
             transition="all 0.2s"
