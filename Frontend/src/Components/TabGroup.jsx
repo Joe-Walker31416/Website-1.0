@@ -19,8 +19,7 @@ import {
   Badge,
   AspectRatio
 } from '@chakra-ui/react';
-
-import LoginButton from './LoginButton';
+import { useNavigate } from 'react-router-dom';
 
 const TabGroup = () => {
   const [userData, setUserData] = useState({
@@ -41,6 +40,7 @@ const TabGroup = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const toast = useToast();
+  const navigate = useNavigate();
 
   // Fetch user status
   const fetchUserStatus = useCallback(async () => {
@@ -76,47 +76,16 @@ const TabGroup = () => {
 
   // Fetch tracks for a specific player
   const fetchUserTracks = useCallback(async (playerId) => {
-    const fetchUserTracks = async (playerId) => {
-      try {
-        const token = localStorage.getItem('access_token');
-        if (!token) {
-          console.error("No token found in localStorage");
-          return null;
-        }
-        
-        console.log(`Fetching tracks for User ${playerId}`);
-        console.log(`API URL: ${config.API_URL}/api/all_user_tracks/${playerId}`);
-        console.log(`Token: ${token.substring(0, 10)}...`);
-        
-        // Using the fixed endpoint
-        const response = await fetch(`${config.API_URL}/api/all_user_tracks/${playerId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        console.log(`Response status: ${response.status}`);
-        
-        if (response.ok) {
-          const data = await response.json();
-          console.log(`User${playerId} tracks data:`, data);
-          return data;
-        } else {
-          const errorText = await response.text();
-          console.error(`Failed to fetch tracks for User${playerId}:`, response.status, errorText);
-          return null;
-        }
-      } catch (error) {
-        console.error(`Error fetching tracks for User${playerId}:`, error);
-        return null;
-      }
-    };
-    
     try {
       const token = localStorage.getItem('access_token');
-      if (!token) return null;
+      if (!token) {
+        console.error("No token found in localStorage");
+        return null;
+      }
       
-      console.log(`Fetching tracks for User${playerId}`);
+      console.log(`Fetching tracks for User ${playerId}`);
+      console.log(`API URL: ${config.API_URL}/api/all_user_tracks/${playerId}`);
+      console.log(`Token: ${token.substring(0, 10)}...`);
       
       // Using the fixed endpoint
       const response = await fetch(`${config.API_URL}/api/all_user_tracks/${playerId}`, {
@@ -141,7 +110,6 @@ const TabGroup = () => {
       return null;
     }
   }, []);
-  
 
   // Load user data and tracks
   const loadUserData = useCallback(async () => {
@@ -204,9 +172,13 @@ const TabGroup = () => {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, [loadUserData]);
 
-  // Handle login for User2
-  const handleLoginPlayer2 = () => {
-    window.location.href = config.API_URL + '/api/login/2';
+  // Handle login for a specific player
+  const handleLogin = (playerId) => {
+    // Store the current URL to return to this page after login
+    sessionStorage.setItem('redirectUrl', '/sections');
+    
+    // Redirect to the specific player login URL
+    window.location.href = `${config.API_URL}/api/login/${playerId}`;
   };
 
   // Component to display a single track
@@ -340,17 +312,14 @@ const TabGroup = () => {
               <Avatar size="xl" mb={2} />
               <Heading size="md">{isPlayer2 ? "User 2" : "User 1"}</Heading>
               <Text color="gray.600">Not logged in</Text>
-              {!isPlayer2 || userData.player1?.saved ? (
-                <LoginButton size="sm"/>
-                // <Button 
-                //   colorScheme="green" 
-                //   onClick={isPlayer2 ? handleLoginPlayer2 : null}
-                //   size="sm"
-                //   mt={2}
-                // >
-                //   {isPlayer2 ? "Login User 2" : "Login"}
-                // </Button>
-              ) : null}
+              <Button 
+                colorScheme={isPlayer2 ? "blue" : "green"} 
+                onClick={() => handleLogin(isPlayer2 ? 2 : 1)}
+                size="sm"
+                mt={2}
+              >
+                Login with Spotify
+              </Button>
             </VStack>
           )}
         </Center>
