@@ -82,7 +82,7 @@ const TabGroup = () => {
           return null;
         }
         
-        console.log(`Fetching tracks for player ${playerId}`);
+        console.log(`Fetching tracks for User ${playerId}`);
         console.log(`API URL: ${config.API_URL}/api/all_user_tracks/${playerId}`);
         console.log(`Token: ${token.substring(0, 10)}...`);
         
@@ -97,15 +97,15 @@ const TabGroup = () => {
         
         if (response.ok) {
           const data = await response.json();
-          console.log(`Player ${playerId} tracks data:`, data);
+          console.log(`User${playerId} tracks data:`, data);
           return data;
         } else {
           const errorText = await response.text();
-          console.error(`Failed to fetch tracks for player ${playerId}:`, response.status, errorText);
+          console.error(`Failed to fetch tracks for User${playerId}:`, response.status, errorText);
           return null;
         }
       } catch (error) {
-        console.error(`Error fetching tracks for player ${playerId}:`, error);
+        console.error(`Error fetching tracks for User${playerId}:`, error);
         return null;
       }
     };
@@ -114,7 +114,7 @@ const TabGroup = () => {
       const token = localStorage.getItem('access_token');
       if (!token) return null;
       
-      console.log(`Fetching tracks for player ${playerId}`);
+      console.log(`Fetching tracks for User${playerId}`);
       
       // Using the fixed endpoint
       const response = await fetch(`${config.API_URL}/api/all_user_tracks/${playerId}`, {
@@ -127,15 +127,15 @@ const TabGroup = () => {
       
       if (response.ok) {
         const data = await response.json();
-        console.log(`Player ${playerId} tracks:`, data);
+        console.log(`User${playerId} tracks:`, data);
         return data;
       } else {
         const errorText = await response.text();
-        console.error(`Failed to fetch tracks for player ${playerId}:`, response.status, errorText);
+        console.error(`Failed to fetch tracks for User${playerId}:`, response.status, errorText);
         return null;
       }
     } catch (error) {
-      console.error(`Error fetching tracks for player ${playerId}:`, error);
+      console.error(`Error fetching tracks for User${playerId}:`, error);
       return null;
     }
   }, []);
@@ -202,7 +202,7 @@ const TabGroup = () => {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, [loadUserData]);
 
-  // Handle login for player 2
+  // Handle login for User2
   const handleLoginPlayer2 = () => {
     window.location.href = config.API_URL + '/api/login/2';
   };
@@ -240,7 +240,7 @@ const TabGroup = () => {
           position="absolute" 
           top="8px" 
           left="8px" 
-          // Change badge color for player 2's top track to blue
+          // Change badge color for User2's top track to blue
           colorScheme={(rank === 1 && isPlayer2) ? "blue" : (rank === 1) ? "green" : "gray"} 
           fontSize={isTopTrack ? "xl" : "md"}
           px="2"
@@ -331,12 +331,12 @@ const TabGroup = () => {
                 mb={2}
               />
               <Heading size="md">{userData.name}</Heading>
-              <Text color="gray.600">{isPlayer2 ? "Player 2" : "Player 1"}</Text>
+              <Text color="gray.600">{isPlayer2 ? "User 2" : "User 1"}</Text>
             </VStack>
           ) : (
             <VStack spacing={3}>
               <Avatar size="xl" mb={2} />
-              <Heading size="md">{isPlayer2 ? "Player 2" : "Player 1"}</Heading>
+              <Heading size="md">{isPlayer2 ? "User 2" : "User 1"}</Heading>
               <Text color="gray.600">Not logged in</Text>
               {!isPlayer2 || userData.player1?.saved ? (
                 <Button 
@@ -345,7 +345,7 @@ const TabGroup = () => {
                   size="sm"
                   mt={2}
                 >
-                  {isPlayer2 ? "Login Player 2" : "Login"}
+                  {isPlayer2 ? "Login User 2" : "Login"}
                 </Button>
               ) : null}
             </VStack>
@@ -394,7 +394,7 @@ const TabGroup = () => {
   // Direct display of music without tab interface
   return (
     <Flex width="100%" direction={{ base: "column", md: "row" }}>
-      {/* Player 1 Section */}
+      {/* User1 Section */}
       <Box p={4} width={{ base: "100%", md: "50%" }}>
         <UserProfileCard userData={userData.player1} />
         
@@ -447,7 +447,7 @@ const TabGroup = () => {
                my={{ base: 4, md: 0 }}
                color="gray.200" />
       
-      {/* Player 2 Section */}
+      {/* User2 Section */}
       <Box p={4} width={{ base: "100%", md: "50%" }}>
         <UserProfileCard userData={userData.player2} isPlayer2={true} />
         
@@ -488,7 +488,7 @@ const TabGroup = () => {
           </Box>
         ) : (
           <Center p={8} borderWidth="1px" borderRadius="lg" bg="gray.50">
-            <Text>Login Player 2 to view their top tracks</Text>
+            <Text>Login User 2 to view their top tracks</Text>
           </Center>
         )}
       </Box>

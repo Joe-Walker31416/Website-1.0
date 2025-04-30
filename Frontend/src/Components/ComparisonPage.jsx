@@ -222,8 +222,8 @@ const testUserStatus = async () => {
       setComparison(null);
       
       toast({
-        title: "Player Reset",
-        description: `Player ${playerId} data has been reset.`,
+        title: "UserReset",
+        description: `User${playerId} data has been reset.`,
         status: "success",
         duration: 3000,
         isClosable: true,
@@ -249,11 +249,11 @@ const testUserStatus = async () => {
   const renderUserCard = (player, playerId) => {
     // Safety check for null/undefined player
     if (!player) {
-      console.warn(`Player ${playerId} is null or undefined`);
+      console.warn(`User${playerId} is null or undefined`);
       player = { saved: false, name: null, picture: null };
     }
     
-    console.log(`Rendering card for player ${playerId}:`, player);
+    console.log(`Rendering card for User${playerId}:`, player);
     
     return (
     <Card maxW="sm" mx="auto" boxShadow="md" borderWidth="1px" overflow="hidden">
@@ -284,7 +284,7 @@ const testUserStatus = async () => {
                 bg="gray.200"
                 icon={<Text fontSize="4xl" color="gray.400">?</Text>}
               />
-              <Heading size="md" mb={2}>Player {playerId}</Heading>
+              <Heading size="md" mb={2}>User{playerId}</Heading>
               <Badge colorScheme="red" mb={4} fontSize="0.8em" px={2} py={1}>NOT CONNECTED</Badge>
               <Button 
                 colorScheme="green" 
