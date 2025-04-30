@@ -31,6 +31,7 @@ import {
   Spinner,
   useToast
 } from '@chakra-ui/react';
+import ContextLoginButton from './ContextLoginButton';
 
 // Custom hook for setInterval with React
 const useInterval = (callback, delay) => {
@@ -54,70 +55,6 @@ const useInterval = (callback, delay) => {
 };
 
 const ComparisonPage = () => {
-  
-const testUserStatus = async () => {
-  console.log("==== TESTING USER STATUS ====");
-  console.log("API URL:", config.API_URL);
-  
-  const token = localStorage.getItem('access_token');
-  console.log("Token exists:", !!token);
-  if (token) {
-    console.log("Token preview:", token.substring(0, 10) + "...");
-  } else {
-    console.error("No token found in localStorage");
-    // Try looking for token in URL params
-    const params = new URLSearchParams(window.location.search);
-    const urlToken = params.get('access_token');
-    if (urlToken) {
-      console.log("Found token in URL params, saving to localStorage");
-      localStorage.setItem('access_token', urlToken);
-      console.log("Token saved");
-    } else {
-      console.error("No token in URL params either");
-    }
-    return;
-  }
-  
-  try {
-    // Test direct API call to user_status
-    console.log("Testing direct call to /api/user_status...");
-    const response = await fetch(config.API_URL + '/api/user_status', {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
-    
-    console.log("Response status:", response.status);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Error response:", errorText);
-      
-      // Test if backend is accessible at all
-      console.log("Testing basic backend connectivity...");
-      const basicResponse = await fetch(config.API_URL);
-      console.log("Basic connection test:", basicResponse.status);
-      
-      return;
-    }
-    
-    const data = await response.json();
-    console.log("User status data:", data);
-    
-    // Check if data is in expected format
-    if (data && data.player1 && data.player2) {
-      console.log("Data structure looks correct:");
-      console.log("- Player1 saved:", data.player1.saved);
-      console.log("- Player1 name:", data.player1.name);
-      console.log("- Player2 saved:", data.player2.saved);
-      console.log("- Player2 name:", data.player2.name);
-    } else {
-      console.error("Unexpected data structure:", data);
-    }
-  } catch (error) {
-    console.error("Error testing user status:", error);
-  }
-};
   const [comparison, setComparison] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -222,8 +159,8 @@ const testUserStatus = async () => {
       setComparison(null);
       
       toast({
-        title: "UserReset",
-        description: `User${playerId} data has been reset.`,
+        title: "User Reset",
+        description: `User ${playerId} data has been reset.`,
         status: "success",
         duration: 3000,
         isClosable: true,
@@ -240,12 +177,7 @@ const testUserStatus = async () => {
     }
   };
 
-  // Handle login for a specific player
-  const handleLogin = (playerId) => {
-    window.location.href = `${config.API_URL}/api/login/${playerId}`;
-  };
-
-  // The renderUserCard function that was missing
+  // The renderUserCard function that uses the context-aware login button
   const renderUserCard = (player, playerId) => {
     // Safety check for null/undefined player
     if (!player) {
@@ -256,52 +188,51 @@ const testUserStatus = async () => {
     console.log(`Rendering card for User${playerId}:`, player);
     
     return (
-    <Card maxW="sm" mx="auto" boxShadow="md" borderWidth="1px" overflow="hidden">
-      <Box bg="green.500" h="8px" w="100%" />
-      <CardBody>
-        <Center flexDirection="column">
-          {player.saved ? (
-            <>
-              <Avatar 
-                size="2xl" 
-                name={player.name} 
-                src={player.picture} 
-                mb={4} 
-                border="4px solid"
-                borderColor="green.500"
-              />
-              <Heading size="md" mb={2}>{player.name}</Heading>
-              <Badge colorScheme="green" mb={4} fontSize="0.8em" px={2} py={1}>CONNECTED</Badge>
-              <Button colorScheme="red" size="sm" onClick={() => resetPlayer(playerId)} mt={2}>
-                Reset User
-              </Button>
-            </>
-          ) : (
-            <>
-              <Avatar 
-                size="2xl" 
-                mb={4} 
-                bg="gray.200"
-                icon={<Text fontSize="4xl" color="gray.400">?</Text>}
-              />
-              <Heading size="md" mb={2}>User {playerId}</Heading>
-              <Badge colorScheme="red" mb={4} fontSize="0.8em" px={2} py={1}>NOT CONNECTED</Badge>
-              <Button 
-                colorScheme="green" 
-                onClick={() => handleLogin(playerId)}
-                size="md"
-                borderRadius="full"
-                px={6}
-              >
-                Login with Spotify
-              </Button>
-            </>
-          )}
-        </Center>
-      </CardBody>
-    </Card>
-  );
-}
+      <Card maxW="sm" mx="auto" boxShadow="md" borderWidth="1px" overflow="hidden">
+        <Box bg={playerId === 1 ? "green.500" : "blue.500"} h="8px" w="100%" />
+        <CardBody>
+          <Center flexDirection="column">
+            {player.saved ? (
+              <>
+                <Avatar 
+                  size="2xl" 
+                  name={player.name} 
+                  src={player.picture} 
+                  mb={4} 
+                  border="4px solid"
+                  borderColor={playerId === 1 ? "green.500" : "blue.500"}
+                />
+                <Heading size="md" mb={2}>{player.name}</Heading>
+                <Badge colorScheme="green" mb={4} fontSize="0.8em" px={2} py={1}>CONNECTED</Badge>
+                <Button colorScheme="red" size="sm" onClick={() => resetPlayer(playerId)} mt={2}>
+                  Reset User
+                </Button>
+              </>
+            ) : (
+              <>
+                <Avatar 
+                  size="2xl" 
+                  mb={4} 
+                  bg="gray.200"
+                  icon={<Text fontSize="4xl" color="gray.400">?</Text>}
+                />
+                <Heading size="md" mb={2}>User {playerId}</Heading>
+                <Badge colorScheme="red" mb={4} fontSize="0.8em" px={2} py={1}>NOT CONNECTED</Badge>
+                <ContextLoginButton 
+                  playerId={playerId}
+                  colorScheme={playerId === 1 ? "green" : "blue"}
+                  size="md"
+                  borderRadius="full"
+                  px={6}
+                  redirectPath="compare"
+                />
+              </>
+            )}
+          </Center>
+        </CardBody>
+      </Card>
+    );
+  };
 
   // Helper function to render score cards
   const renderScoreCard = (title, score, color = "green") => (
@@ -334,7 +265,6 @@ const testUserStatus = async () => {
 
   // Initial load
   useEffect(() => {
-    testUserStatus();
     console.log("ComparisonPage mounted");
     console.log("API URL being used:", config.API_URL);
     const token = localStorage.getItem('access_token');

@@ -19,7 +19,7 @@ import {
   Badge,
   AspectRatio
 } from '@chakra-ui/react';
-import { useNavigate } from 'react-router-dom';
+import ContextLoginButton from './ContextLoginButton';
 
 const TabGroup = () => {
   const [userData, setUserData] = useState({
@@ -40,7 +40,6 @@ const TabGroup = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const toast = useToast();
-  const navigate = useNavigate();
 
   // Fetch user status
   const fetchUserStatus = useCallback(async () => {
@@ -110,6 +109,7 @@ const TabGroup = () => {
       return null;
     }
   }, []);
+  
 
   // Load user data and tracks
   const loadUserData = useCallback(async () => {
@@ -171,15 +171,6 @@ const TabGroup = () => {
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, [loadUserData]);
-
-  // Handle login for a specific player
-  const handleLogin = (playerId) => {
-    // Store the current URL to return to this page after login
-    sessionStorage.setItem('redirectUrl', '/sections');
-    
-    // Redirect to the specific player login URL
-    window.location.href = `${config.API_URL}/api/login/${playerId}`;
-  };
 
   // Component to display a single track
   const TrackCard = ({ track, rank, isTopTrack = false, isPlayer2 = false }) => (
@@ -312,14 +303,12 @@ const TabGroup = () => {
               <Avatar size="xl" mb={2} />
               <Heading size="md">{isPlayer2 ? "User 2" : "User 1"}</Heading>
               <Text color="gray.600">Not logged in</Text>
-              <Button 
-                colorScheme={isPlayer2 ? "blue" : "green"} 
-                onClick={() => handleLogin(isPlayer2 ? 2 : 1)}
+              <ContextLoginButton 
+                playerId={isPlayer2 ? 2 : 1}
+                colorScheme={isPlayer2 ? "blue" : "green"}
                 size="sm"
-                mt={2}
-              >
-                Login with Spotify
-              </Button>
+                redirectPath="sections"
+              />
             </VStack>
           )}
         </Center>

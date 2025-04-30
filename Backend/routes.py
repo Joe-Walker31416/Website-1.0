@@ -415,20 +415,27 @@ def user_status():
     except Exception as e:
         logger.error(f"Error in user_status endpoint: {str(e)}")
         return jsonify({"error": str(e)}), 500
-
-@app.route("/api/login/<int:player_id>")
+    
+@app.route('/api/login/<int:player_id>')
 def player_login(player_id):
     """Initiate login flow for a specific player"""
     try:
         if player_id not in [1, 2]:
             return jsonify({"error": "Invalid player ID"}), 400
         
+        # Get redirect path from query parameters
+        redirect_path = request.args.get('redirect', 'compare')
+        
+        # Store player ID and redirect path in session
         session['current_player'] = player_id
-        logger.debug(f"Starting login flow for player {player_id}")
+        session['redirect_path'] = redirect_path
+        
+        logger.debug(f"Starting login flow for player {player_id} with redirect to {redirect_path}")
         return redirect('/login')
     except Exception as e:
         logger.error(f"Error in player_login endpoint: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
 
 @app.route("/api/save_user_data")
 def save_user_data():
@@ -440,7 +447,10 @@ def save_user_data():
         
         # Identify which player we're saving data for
         player_id = session.get('current_player', 1)
-        logger.info(f"Saving data for player {player_id}")
+        # Get the redirect path from session
+        redirect_path = session.get('redirect_path', 'compare')
+        
+        logger.info(f"Saving data for player {player_id} with redirect to {redirect_path}")
         
         # IMPORTANT: Store the token in our player_tokens dictionary
         player_tokens[player_id] = session['access_token']
@@ -552,18 +562,15 @@ def save_user_data():
         player.songsL, player.artistsL = idLists(player.longTracks)
         
         logger.info(f"Successfully saved data for player {player_id}")
-        logger.debug(f"Player {player_id} details: name={player.name}, picture={player.picture}, saved={player.saved}")
         
-        # Create an access token for redirecting to frontend
-        access_token = session['access_token']
-        # Redirect to the frontend with the token
-        return redirect(f"https://spotify-comparison-frontend.onrender.com/?access_token={session['access_token']}&player_id={player_id}")
+        # Create an access token for redirecting to frontend with the redirect path
+        frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+        return redirect(f"{frontend_url}?access_token={session['access_token']}&player_id={player_id}&redirect_to={redirect_path}")
     
     except Exception as e:
         logger.exception(f"Error saving user data: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-    
 @app.route("/api/reset/<int:player_id>")
 def reset_player(player_id):
     """Reset a player's data"""
