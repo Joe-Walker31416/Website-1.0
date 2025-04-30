@@ -113,7 +113,7 @@ const Sections = () => {
       {/* Display just the My Music content without tabs */}
       <Box mt={4}>
         <Heading size="lg" mb={6} textAlign="center">
-          {userData?.player1?.name ? `${userData.player1.name}'s Top Music` : 'Your Top Music'}
+          Your Top Music{/* {userData?.player1?.name ? `${userData.player1.name}'s Top Music` : 'Your Top Music'} */}
         </Heading>
         
         {isLoading ? (
