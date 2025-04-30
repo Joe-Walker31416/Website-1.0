@@ -20,6 +20,8 @@ import {
   AspectRatio
 } from '@chakra-ui/react';
 
+import LoginButton from './LoginButton';
+
 const TabGroup = () => {
   const [userData, setUserData] = useState({
     player1: { saved: false, name: null, picture: null },
@@ -339,14 +341,15 @@ const TabGroup = () => {
               <Heading size="md">{isPlayer2 ? "User 2" : "User 1"}</Heading>
               <Text color="gray.600">Not logged in</Text>
               {!isPlayer2 || userData.player1?.saved ? (
-                <Button 
-                  colorScheme="green" 
-                  onClick={isPlayer2 ? handleLoginPlayer2 : null}
-                  size="sm"
-                  mt={2}
-                >
-                  {isPlayer2 ? "Login User 2" : "Login"}
-                </Button>
+                <LoginButton/>
+                // <Button 
+                //   colorScheme="green" 
+                //   onClick={isPlayer2 ? handleLoginPlayer2 : null}
+                //   size="sm"
+                //   mt={2}
+                // >
+                //   {isPlayer2 ? "Login User 2" : "Login"}
+                // </Button>
               ) : null}
             </VStack>
           )}
