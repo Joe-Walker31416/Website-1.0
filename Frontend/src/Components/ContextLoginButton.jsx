@@ -22,38 +22,32 @@ const ContextLoginButton = ({
     const location = useLocation();
     
     const handleLogin = () => {
-        // Explicitly use the provided redirectPath if available
+        // Determine the redirect path based on context
         let returnPath;
         
         if (redirectPath && redirectPath.length > 0) {
-            // Use the explicitly provided path
+            // If explicitly provided, use that
             returnPath = redirectPath;
         } else {
-            // Extract the path from current location, remove leading slash
+            // Extract the current path without the leading slash
             const currentPath = location.pathname;
-            returnPath = currentPath.startsWith('/') ? currentPath.substring(1) : currentPath;
+            const cleanPath = currentPath.startsWith('/') ? currentPath.substring(1) : currentPath;
             
-            // Default to 'compare' if path is empty or just "/"
-            if (!returnPath || returnPath === '/') {
-                returnPath = 'compare';
+            // Use the current path if it's one of our main pages, or default to 'compare'
+            if (cleanPath === 'sections' || cleanPath === 'compare') {
+                returnPath = cleanPath;
             } else {
-                returnPath='sections';
+                returnPath = 'compare'; // Default fallback
             }
-        }
-        
-        // Store the path to return to after login
-        sessionStorage.setItem('redirect_page', returnPath);
-        
-        // Clear any previous errors
-        const hasError = localStorage.getItem('auth_error');
-        if (hasError) {
-            localStorage.removeItem('auth_error');
         }
         
         // Log for debugging
         console.log(`Logging in player ${playerId} with redirect to: ${returnPath}`);
         
-        // Redirect to the backend login endpoint with the player ID
+        // Store the path for potential use after login
+        sessionStorage.setItem('redirect_page', returnPath);
+        
+        // Redirect to the backend login endpoint with the player ID and redirect path
         window.location.href = `${config.API_URL}/api/login/${playerId}?redirect=${returnPath}`;
     };
 
@@ -61,7 +55,8 @@ const ContextLoginButton = ({
         <Button 
             onClick={handleLogin} 
             colorScheme={colorScheme}
-            size={sizeProps}
+            size={typeof sizeProps === 'object' ? undefined : sizeProps}
+            {...(typeof sizeProps === 'object' ? sizeProps : {})}
             _hover={{ transform: 'translateY(-2px)', boxShadow: 'lg' }}
             _active={{ transform: 'translateY(0)', boxShadow: 'md' }}
             transition="all 0.2s"
