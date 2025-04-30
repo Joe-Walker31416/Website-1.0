@@ -341,7 +341,7 @@ const TabGroup = () => {
               <Heading size="md">{isPlayer2 ? "User 2" : "User 1"}</Heading>
               <Text color="gray.600">Not logged in</Text>
               {!isPlayer2 || userData.player1?.saved ? (
-                <LoginButton/>
+                <LoginButton size="sm"/>
                 // <Button 
                 //   colorScheme="green" 
                 //   onClick={isPlayer2 ? handleLoginPlayer2 : null}
