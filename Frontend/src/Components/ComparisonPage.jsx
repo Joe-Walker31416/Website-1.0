@@ -54,6 +54,70 @@ const useInterval = (callback, delay) => {
 };
 
 const ComparisonPage = () => {
+  
+const testUserStatus = async () => {
+  console.log("==== TESTING USER STATUS ====");
+  console.log("API URL:", config.API_URL);
+  
+  const token = localStorage.getItem('access_token');
+  console.log("Token exists:", !!token);
+  if (token) {
+    console.log("Token preview:", token.substring(0, 10) + "...");
+  } else {
+    console.error("No token found in localStorage");
+    // Try looking for token in URL params
+    const params = new URLSearchParams(window.location.search);
+    const urlToken = params.get('access_token');
+    if (urlToken) {
+      console.log("Found token in URL params, saving to localStorage");
+      localStorage.setItem('access_token', urlToken);
+      console.log("Token saved");
+    } else {
+      console.error("No token in URL params either");
+    }
+    return;
+  }
+  
+  try {
+    // Test direct API call to user_status
+    console.log("Testing direct call to /api/user_status...");
+    const response = await fetch(config.API_URL + '/api/user_status', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    console.log("Response status:", response.status);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Error response:", errorText);
+      
+      // Test if backend is accessible at all
+      console.log("Testing basic backend connectivity...");
+      const basicResponse = await fetch(config.API_URL);
+      console.log("Basic connection test:", basicResponse.status);
+      
+      return;
+    }
+    
+    const data = await response.json();
+    console.log("User status data:", data);
+    
+    // Check if data is in expected format
+    if (data && data.player1 && data.player2) {
+      console.log("Data structure looks correct:");
+      console.log("- Player1 saved:", data.player1.saved);
+      console.log("- Player1 name:", data.player1.name);
+      console.log("- Player2 saved:", data.player2.saved);
+      console.log("- Player2 name:", data.player2.name);
+    } else {
+      console.error("Unexpected data structure:", data);
+    }
+  } catch (error) {
+    console.error("Error testing user status:", error);
+  }
+};
   const [comparison, setComparison] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -66,9 +130,11 @@ const ComparisonPage = () => {
   // Memoize fetch functions so they can be used in useEffect dependencies
   const fetchUserStatus = useCallback(async () => {
     try {
-      console.log("Fetching user status from:", config.API_URL + '/api/user_status');
+      console.log("==== FETCHING USER STATUS ====");
+      console.log("API URL:", config.API_URL + '/api/user_status');
+      
       const token = localStorage.getItem('access_token');
-      console.log("Token exists:", !!token);
+      console.log("Token exists in localStorage:", !!token);
       if (token) {
         console.log("Token preview:", token.substring(0, 10) + "...");
       }
@@ -82,11 +148,18 @@ const ComparisonPage = () => {
       console.log("Response status:", response.status);
       
       if (!response.ok) {
-        throw new Error(`Failed to fetch user status: ${response.status}`);
+        const errorText = await response.text();
+        console.error("Error response:", errorText);
+        throw new Error(`Failed to fetch user status: ${response.status} - ${errorText}`);
       }
       
       const data = await response.json();
-      console.log("User status data:", data);
+      console.log("User status data structure:", JSON.stringify(data, null, 2));
+      console.log("Player1 saved:", data?.player1?.saved);
+      console.log("Player1 name:", data?.player1?.name);
+      console.log("Player2 saved:", data?.player2?.saved);
+      console.log("Player2 name:", data?.player2?.name);
+      
       setUserStatus(data);
       return data;
     } catch (error) {
@@ -173,7 +246,16 @@ const ComparisonPage = () => {
   };
 
   // The renderUserCard function that was missing
-  const renderUserCard = (player, playerId) => (
+  const renderUserCard = (player, playerId) => {
+    // Safety check for null/undefined player
+    if (!player) {
+      console.warn(`Player ${playerId} is null or undefined`);
+      player = { saved: false, name: null, picture: null };
+    }
+    
+    console.log(`Rendering card for player ${playerId}:`, player);
+    
+    return (
     <Card maxW="sm" mx="auto" boxShadow="md" borderWidth="1px" overflow="hidden">
       <Box bg="green.500" h="8px" w="100%" />
       <CardBody>
@@ -219,6 +301,7 @@ const ComparisonPage = () => {
       </CardBody>
     </Card>
   );
+}
 
   // Helper function to render score cards
   const renderScoreCard = (title, score, color = "green") => (
@@ -251,6 +334,7 @@ const ComparisonPage = () => {
 
   // Initial load
   useEffect(() => {
+    testUserStatus();
     console.log("ComparisonPage mounted");
     console.log("API URL being used:", config.API_URL);
     const token = localStorage.getItem('access_token');
